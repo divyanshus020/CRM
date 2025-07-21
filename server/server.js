@@ -5,6 +5,8 @@ import connectDB from "./config/databaseConnection.js";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/authRoutes.js";
+import challanRoutes from "./routes/challanRoutes.js"
+import coustmerRoutes from "./routes/coustmerRoute.js";
 
 
 const app = express()
@@ -18,6 +20,8 @@ app.use(cookieParser())
 
 //routes
 app.use("/api/v1/auth", authRoutes)
+app.use("/api/v1/challan", challanRoutes)
+app.use("/api/v1/coustmer", coustmerRoutes)
 
 app.get("/", (req, res) => { 
   res.send("Hello, World!")
