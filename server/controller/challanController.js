@@ -57,3 +57,118 @@ export const createChallan = async (req, res) => {
     });
   }
 };
+
+export const getAllChallans = async (req, res) => {
+  try {
+    const challans = await Challan.find({ user: req.id }).sort({ createdAt: -1 }).populate('customer');
+    return res.status(200).json(challans);
+  } catch (error) {
+    console.error("Get All Challans Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch challans",
+      error: error.message
+    });
+  }
+}
+
+export const getChallanByID = async(req, res) => {
+  try {
+    const { id } = req.params;
+    const challan = await Challan.findById(id).populate('customer');
+    
+    if (!challan) {
+      return res.status(404).json({ message: "Challan not found" });
+    }
+
+    return res.status(200).json(challan);
+  } catch (error) {
+    console.error("Get Challan By ID Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch challan",
+      error: error.message
+    });
+  }
+}
+
+
+export const updateChallan = async (req, res) => {
+  try {
+    const challanId = req.params.id;
+    const {
+      customer,
+      challanNumber,
+      date,
+      items,
+      gstPercentage
+    } = req.body;
+
+    // Calculate totals from items
+
+    let calculatedItems = [];
+    
+    if(items && items.length >0){
+     calculatedItems = items.map(item => {
+        const total = item.quantity * item.rate;
+        return { ...item, total };
+      });
+    }
+
+    const subTotal = calculatedItems.reduce((acc, item) => acc + item.total, 0);
+    const gstAmount = (subTotal * gstPercentage) / 100;
+    const grandTotal = subTotal + gstAmount;
+
+    const updatedChallan = await Challan.findByIdAndUpdate(
+      challanId,
+      {
+        customer,
+        challanNumber,
+        date,
+        items: calculatedItems,
+        subTotal,
+        gstPercentage,
+        gstAmount,
+        grandTotal,
+      },
+      { new: true } // return updated document
+    );
+
+    if (!updatedChallan) {
+      return res.status(404).json({ message: "Challan not found" });
+    }
+
+    res.status(200).json(updatedChallan);
+  } catch (error) {
+    console.error("Error updating challan:", error);
+    res.status(500).json({ message: "Server error while updating challan" });
+  }
+};
+
+
+import mongoose from "mongoose";
+// ...existing code...
+
+export const deleteChallan = async (req, res) => {
+  try {
+    const challanId = req.params.id;
+
+    console.log("hiii")
+
+    // Edge case: Invalid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(challanId)) {
+      return res.status(400).json({ message: "Invalid challan ID" });
+    }
+
+    const deletedChallan = await Challan.findByIdAndDelete(challanId);
+
+    if (!deletedChallan) {
+      return res.status(404).json({ message: "Challan not found" });
+    }
+
+    return res.status(200).json({ message: "Challan deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting challan:", error);
+    res.status(500).json({ message: "Server error while deleting challan" });
+  }
+};
