@@ -26,7 +26,7 @@ export const registerUser = async (req, res) => {
       password: hashedPassword,
     });
 
-    return res.status(201).json({ message: "User registered successfully" });
+    return res.status(201).json({ message: "User registered successfully", success: true });
   } catch (error) {
     return res.status(500).json({
      message:
@@ -34,6 +34,7 @@ export const registerUser = async (req, res) => {
       ? "name is required"
       : "Failed To Register",
      error: error.message,
+     success: false,
 });
   }
 };
