@@ -60,10 +60,12 @@ export const createChallan = async (req, res) => {
 
 export const getAllChallans = async (req, res) => {
   try {
+    console.log("Fetching all challans for user:", req.id);
     const challans = await Challan.find({ user: req.id }).sort({ createdAt: -1 }).populate('customer');
+    console.log(challans)
     return res.status(200).json(challans);
   } catch (error) {
-    console.error("Get All Challans Error:", error);
+    console.error("Get All Challans Error:", error); 
     return res.status(500).json({
       success: false,
       message: "Failed to fetch challans",

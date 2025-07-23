@@ -9,6 +9,8 @@ export const generateToken = (res, user, message) => {
 
   console.log(userWithoutPassword)
 
+  console.log(token)
+
   return res
     .status(200)
     .cookie("token", token, {
@@ -16,5 +18,5 @@ export const generateToken = (res, user, message) => {
       sameSite: "strict",
       maxAge: 24 * 60 * 60 * 1000,
     })
-    .json({ success: true, message, user: userWithoutPassword });
+    .json({ success: true, message, user: userWithoutPassword, token });
 };

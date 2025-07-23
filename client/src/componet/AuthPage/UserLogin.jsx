@@ -15,15 +15,27 @@ const Login = () => {
         .email('Invalid email address')
         .required('Email is required'),
       password: Yup.string()
-        .min(6, 'Minimum 6 characters required')
         .required('Password is required'),
     }),
-    onSubmit: (values) => {
-      console.log('Login Data:', values);
-      loginUser(values)
-      alert('Login Successful!');
+    onSubmit: async(values) => {
+     try {
+
+        console.log('Form Data:', values);
+        const data = await loginUser(values); // ✅ wait for API to finish
+        console.log('Response Data:', data);
+        if(data.success) {
+          alert('Login Successful!');
+          window.location.href = '/dashboard'; // Redirect to dashboard on success
+        }
+        
+     } catch (error) {
+        console.error('Login Error:', error);
+        alert('Something went wrong during login!');
+      }
+        
+     }
     },
-  });
+ ) ;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
