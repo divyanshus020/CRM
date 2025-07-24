@@ -5,6 +5,7 @@ import UserRegister from "./componet/AuthPage/UserRegister.jsx";
 import Login from "./componet/AuthPage/UserLogin.jsx";
 import Dashboard from "./componet/Dashboard/Dashboard.jsx";
 import ViewChallan from "./componet/Dashboard/ViewChallan.jsx";
+import NewChallan from "./componet/Dashboard/NewChallan.jsx"
 // import Login from "./componet/Login";
 // import Register from "./componet/Register";
 
@@ -26,8 +27,12 @@ const appRouter = createBrowserRouter([
     element: <Dashboard />
   },
   {
-    path: "/view",
+    path: "/view/:challanId",
     element: <ViewChallan />
+  },
+  {
+    path: "/new-challan",
+    element: <NewChallan />
   }
 ]);
 

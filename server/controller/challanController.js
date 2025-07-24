@@ -77,7 +77,7 @@ export const getAllChallans = async (req, res) => {
 export const getChallanByID = async(req, res) => {
   try {
     const { id } = req.params;
-    const challan = await Challan.findById(id).populate('customer');
+    const challan = await Challan.findById(id).populate('customer').populate("user", "name email");
     
     if (!challan) {
       return res.status(404).json({ message: "Challan not found" });

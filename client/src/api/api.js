@@ -61,6 +61,39 @@ export const getAllChallans = async () => {
   }
 };
 
+export const getChallanById = async (challanId) => {
+
+  try {
+
+    const response = await axiosInstance.get(`/challan/get-challan/${challanId}`, {
+      headers: getAuthHeaders(),
+      withCredentials: true, // cookies send honge
+    });
+
+    console.log('Fetched Challan:', response.data);
+    return response.data;
+    
+  } catch (error) {
+    handleAxiosError(error, 'Failed to fetch challan by ID');
+    
+    
+  }
+}
+
+export const deleteChallan = async (challanId) => {
+  try {
+    const response = await axiosInstance.delete(`/challan/delete-challan/${challanId}`, {
+      headers: getAuthHeaders(),
+      withCredentials: true, // cookies send honge
+    });
+
+    console.log('Deleted Challan:', response.data);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, 'Failed to delete challan');
+  }
+};
+
 // ✅ Common Error Handler
 const handleAxiosError = (error, defaultMessage) => {
   if (error.response) {

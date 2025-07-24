@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, Edit3, Trash2, Plus, RefreshCw, TrendingUp, FileText, DollarSign } from 'lucide-react';
-import { getAllChallans } from '../../api/api';
+import { deleteChallan, getAllChallans } from '../../api/api';
 
 const Dashboard = () => {
   const [challans, setChallans] = useState([]);
@@ -146,6 +146,7 @@ const Dashboard = () => {
       // In real implementation, replace this with your API call:
        const data = await getAllChallans();
       setChallans(data || mockChallans); // Fallback to mock data if API fails
+      console.log('Challans fetched:', data || mockChallans);
       setError('');
     } catch (err) {
       console.error('Error fetching challans:', err);
@@ -193,6 +194,20 @@ const Dashboard = () => {
       {children}
     </button>
   );
+
+  const handleDelete = async (challanId) => {
+    if (window.confirm('Are you sure you want to delete this challan?')) {
+      try {
+        await deleteChallan(challanId);   
+        setChallans(challans.filter(challan => challan._id !== challanId));
+        alert('Challan deleted successfully');
+      } catch (err) { 
+
+        console.error('Error deleting challan:', err);
+        alert('Failed to delete challan: ' + err.message);
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -258,7 +273,7 @@ const Dashboard = () => {
                 <h2 className="text-xl font-semibold text-gray-900">All Challans</h2>
                 <p className="text-gray-600 text-sm mt-1">Manage and track all your challan records</p>
               </div>
-              <button className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+              <button onClick={() => window.location.href = "/new-challan"} className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 <Plus className="w-4 h-4" />
                 Add New Challan
               </button>
@@ -320,7 +335,7 @@ const Dashboard = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <div className="flex items-center gap-2">
                             <ActionButton
-                              onClick={() => window.location.href = `/view`}
+                              onClick={() => window.location.href = `/view/${challan._id}`}
                               icon={Eye}
                               className="text-blue-600 hover:bg-blue-50"
                             >
@@ -334,7 +349,7 @@ const Dashboard = () => {
                               Edit
                             </ActionButton>
                             <ActionButton
-                              onClick={() => console.log('Delete', challan._id)}
+                              onClick={() => handleDelete(challan._id)}
                               icon={Trash2}
                               className="text-red-600 hover:bg-red-50"
                             >
