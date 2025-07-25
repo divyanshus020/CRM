@@ -136,6 +136,20 @@ export const deleteChallan = async (challanId) => {
   }
 };
 
+export const deleteCustomer = async (customerId) => {
+  try {
+    const response = await axiosInstance.delete(`/coustmer/delete-coustmer/${customerId
+}`, {
+      headers: getAuthHeaders(),
+      withCredentials: true, // cookies send honge
+    });
+    console.log('Deleted Customer:', response.data);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, 'Failed to delete customer');
+  }
+};
+
 // ✅ Common Error Handler
 const handleAxiosError = (error, defaultMessage) => {
   if (error.response) {

@@ -4,6 +4,7 @@ const customerSchema = new mongoose.Schema({
   id: {
     type: String,
     match: /^CUST\d{3,}$/,
+    unique: true,
     description: "Auto-generated string in short numeric form (e.g., 'CUST001')",
   },
   userName: {
