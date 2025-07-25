@@ -3,6 +3,7 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { FaEnvelope, FaLock } from 'react-icons/fa';
 import { loginUser } from '../../api/api';
+import { toast } from 'sonner';
 
 const Login = () => {
   const formik = useFormik({
@@ -24,13 +25,13 @@ const Login = () => {
         const data = await loginUser(values); // ✅ wait for API to finish
         console.log('Response Data:', data);
         if(data.success) {
-          alert('Login Successful!');
+          toast.success('Login Successful!');
           window.location.href = '/dashboard'; // Redirect to dashboard on success
         }
         
      } catch (error) {
         console.error('Login Error:', error);
-        alert('Something went wrong during login!');
+        toast.error( error.message || 'Something went wrong during login!');
       }
         
      }

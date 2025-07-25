@@ -33,6 +33,7 @@ export const loginUser = async (credentials) => {
     }
     return response.data;
   } catch (error) {
+    console.error('Login Error:', error);
     handleAxiosError(error, 'Login failed');
   }
 };
@@ -79,6 +80,47 @@ export const getChallanById = async (challanId) => {
     
   }
 }
+
+export const newCostomer = async (customerData) => {
+  try {
+    const response = await axiosInstance.post('/coustmer/new-coustmer', customerData, {
+      headers: getAuthHeaders(),
+
+      withCredentials: true, // cookies send honge
+    });
+    console.log('New Customer Created:', response.data);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, 'Failed to create new customer');
+  }
+};
+
+export const getAllCustomers = async () => {
+  try {
+    const response = await axiosInstance.get('/coustmer/get-coustmers', {
+      headers: getAuthHeaders(),
+      withCredentials: true, // cookies send honge
+    });
+
+    console.log('Fetched Customers:', response.data);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, 'Failed to fetch customers');
+}
+}
+
+export const editCustomer = async (customerId, customerData) => {
+  try {
+    const response = await axiosInstance.put(`/coustmer/edit-coustmer/${customerId}`, customerData, {
+      headers: getAuthHeaders(),
+      withCredentials: true, // cookies send honge
+    });
+    console.log('Customer Edited:', response.data);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, 'Failed to edit customer');
+  }
+};
 
 export const deleteChallan = async (challanId) => {
   try {

@@ -6,8 +6,10 @@ import Login from "./componet/AuthPage/UserLogin.jsx";
 import Dashboard from "./componet/Dashboard/Dashboard.jsx";
 import ViewChallan from "./componet/Dashboard/ViewChallan.jsx";
 import NewChallan from "./componet/Dashboard/NewChallan.jsx"
-// import Login from "./componet/Login";
-// import Register from "./componet/Register";
+import CustomerRegistrationForm from "./componet/Dashboard/CoustmerRegistaion.jsx";
+import Layout from "./componet/Layout/Layout.jsx";
+import AllCustomers from "./componet/Dashboard/AllCoustmers.jsx";
+import AllChallans from "./componet/Dashboard/AllChallans.jsx";
 
 const appRouter = createBrowserRouter([
   {
@@ -24,15 +26,27 @@ const appRouter = createBrowserRouter([
   },
   {
     path: "/dashboard",
-    element: <Dashboard />
+    element: <Layout><Dashboard /></Layout>
   },
   {
     path: "/view/:challanId",
-    element: <ViewChallan />
+    element: <Layout><ViewChallan /></Layout>
   },
   {
     path: "/new-challan",
-    element: <NewChallan />
+    element: <Layout><NewChallan /></Layout>
+  },
+  {
+    path: "/new-customer",
+    element: <Layout><CustomerRegistrationForm /></Layout>
+  },
+  {
+    path: "/all-customers",
+    element: <Layout><AllCustomers /></Layout>
+  },
+  {
+    path: "/all-challan",
+    element: <Layout><AllChallans /></Layout>
   }
 ]);
 

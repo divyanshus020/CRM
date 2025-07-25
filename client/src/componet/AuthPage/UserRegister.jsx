@@ -3,6 +3,7 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { FaUser, FaEnvelope, FaLock } from 'react-icons/fa';
 import { registerUser } from '../../api/api';
+import { toast } from 'sonner';
 
 const Register = () => {
   const formik = useFormik({
@@ -28,12 +29,15 @@ const Register = () => {
     const data = await registerUser(values); // ✅ wait for API to finish
     console.log('Response Data:', data);
     if(data.success) {
-      alert('Registration Successful!');
+      toast.success('Registration Successful!');
+      window.location.href = '/login'; // Redirect to login page
     }
     
   } catch (error) {
     console.error('Registration Error:', error);
-    alert('Something went wrong during registration!');
+    toast.error(error.message || 'Registration failed', {
+      position: 'top-center',});
+    //alert('Something went wrong during registration!');
   }
 }
 
