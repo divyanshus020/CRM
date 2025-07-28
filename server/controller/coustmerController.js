@@ -162,9 +162,13 @@ export const getAllCustomers = async (req, res) => {
   try {
 
     if (!req.id) return res.status(401).json({ message: "Please login" });
-    const Customers = await Customer.find({}).sort({ createdAt: 1 });
+    const Customers = await Customer.find({}).sort({ createdAt: -1 });
     
-    return res.status(200).json(Customers);
+    return res.status(200).json({
+      message: "Customers fetched successfully",
+      data: Customers,
+      success: true
+    });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch Customers", error: error.message });
   }

@@ -41,7 +41,7 @@ export const loginUser = async (credentials) => {
 // ✅ Get Auth Headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
-  console.log("Using token:", token);
+  // console.log("Using token:", token);
   return {
     Authorization: `Bearer ${token}`,
   };

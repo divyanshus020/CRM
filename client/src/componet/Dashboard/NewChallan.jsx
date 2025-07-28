@@ -14,7 +14,9 @@ import {
   Typography,
   message,
   Popconfirm,
-  Alert
+  Alert,
+  Checkbox,
+  Modal
 } from 'antd';
 import {
   Plus,
@@ -25,56 +27,67 @@ import {
   Calendar,
   Hash,
   IndianRupee,
-  Package
+  Package,
+  Building,
+  Truck,
+  FileText,
+  CheckSquare
 } from 'lucide-react';
 
 import dayjs from 'dayjs';
+import { getAllCustomers, newCostomer } from '../../api/api';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
+const { TextArea } = Input;
 
 const CreateChallanForm = () => {
   const [form] = Form.useForm();
+  const [customerForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [customerModalVisible, setCustomerModalVisible] = useState(false);
+  const [customerLoading, setCustomerLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null); // Add state to track selected customer
   const [items, setItems] = useState([
-    { key: Date.now(), name: '', quantity: 1, rate: 0, total: 0 }
+    { key: Date.now(), particulars: '', hsnCode: '', quantity: 1, rate: 0, amount: 0 }
   ]);
   const [calculations, setCalculations] = useState({
     subTotal: 0,
     gstPercentage: 18,
     gstAmount: 0,
-    grandTotal: 0
+    totalAmount: 0
   });
 
-  // Mock customers - replace with your API
-  const mockCustomers = [
-    {
-      _id: '1',
-      name: 'Rajesh Kumar',
-      email: 'rajesh@example.com',
-      phone: '+91 98765 43210',
-      gstNumber: '08AAAAA0000A1Z5'
-    },
-    {
-      _id: '2',
-      name: 'Priya Sharma',
-      email: 'priya@example.com',
-      phone: '+91 87654 32109',
-      gstNumber: '08BBBBB1111B2Z6'
-    },
-    {
-      _id: '3',
-      name: 'Amit Textiles',
-      email: 'amit@textiles.com',
-      phone: '+91 76543 21098',
-      gstNumber: '08CCCCC2222C3Z7'
+  // Fetch customers from database
+  const fetchCustomers = async () => {
+    try {
+      const response = await getAllCustomers();
+      console.log('Fetched Customers:', response.data);
+      if (response.success) {
+        setCustomers(response.data);
+      } else {
+        message.error('Failed to fetch customers');
+      }
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      message.error('Failed to load customers');
     }
-  ];
+  };
 
   useEffect(() => {
-    setCustomers(mockCustomers);
+    fetchCustomers();
     generateChallanNumber();
+    // Set default values
+    form.setFieldsValue({
+      date: dayjs(),
+      firmName: 'ABC Traders',
+      gstin: '22ABCDE1234F1Z5',
+      pan: 'ABCDE1234F',
+      contact: '9876543210',
+      issuedBy: 'Ramesh Kumar',
+      eoe: false
+    });
   }, []);
 
   useEffect(() => {
@@ -84,20 +97,20 @@ const CreateChallanForm = () => {
   const generateChallanNumber = () => {
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    const challanNumber = `CH${date}${random}`;
-    form.setFieldsValue({ challanNumber });
+    const challanNumber = `CH-${random}`;
+    form.setFieldsValue({ challanNo: challanNumber });
   };
 
   const calculateTotals = () => {
-    const subTotal = items.reduce((sum, item) => sum + (item.total || 0), 0);
+    const subTotal = items.reduce((sum, item) => sum + (item.amount || 0), 0);
     const gstAmount = (subTotal * calculations.gstPercentage) / 100;
-    const grandTotal = subTotal + gstAmount;
+    const totalAmount = subTotal + gstAmount;
 
     setCalculations(prev => ({
       ...prev,
       subTotal,
       gstAmount,
-      grandTotal
+      totalAmount
     }));
   };
 
@@ -106,11 +119,11 @@ const CreateChallanForm = () => {
       if (item.key === key) {
         const updatedItem = { ...item, [field]: value };
         
-        // Calculate total when quantity or rate changes
+        // Calculate amount when quantity or rate changes
         if (field === 'quantity' || field === 'rate') {
           const quantity = field === 'quantity' ? value : updatedItem.quantity;
           const rate = field === 'rate' ? value : updatedItem.rate;
-          updatedItem.total = (quantity || 0) * (rate || 0);
+          updatedItem.amount = (quantity || 0) * (rate || 0);
         }
         
         return updatedItem;
@@ -124,10 +137,11 @@ const CreateChallanForm = () => {
   const addItem = () => {
     const newItem = {
       key: Date.now(),
-      name: '',
+      particulars: '',
+      hsnCode: '',
       quantity: 1,
       rate: 0,
-      total: 0
+      amount: 0
     };
     setItems([...items, newItem]);
   };
@@ -147,11 +161,45 @@ const CreateChallanForm = () => {
     }));
   };
 
+  // Handle customer selection change
+  const handleCustomerChange = (customerId) => {
+    const customer = customers.find(c => c._id === customerId);
+    setSelectedCustomer(customer);
+    console.log('Selected Customer:', customer);
+  };
+
+  const handleAddCustomer = async (values) => {
+    try {
+      setCustomerLoading(true);
+      console.log('Adding Customer with values:', values);
+      const response = await newCostomer(values);
+      
+      if (response.success) {
+        message.success('Customer added successfully!');
+        setCustomerModalVisible(false);
+        customerForm.resetFields();
+        // Refresh customer list
+        await fetchCustomers();
+      } else {
+        message.error('Failed to add customer');
+      }
+    } catch (error) {
+      console.error('Error adding customer:', error);
+      message.error('Failed to add customer');
+    } finally {
+      setCustomerLoading(false);
+    }
+  };
+
   const validateItems = () => {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (!item.name || !item.name.trim()) {
-        message.error(`Item ${i + 1}: Name is required`);
+      if (!item.particulars || !item.particulars.trim()) {
+        message.error(`Item ${i + 1}: Particulars is required`);
+        return false;
+      }
+      if (!item.hsnCode || !item.hsnCode.trim()) {
+        message.error(`Item ${i + 1}: HSN Code is required`);
         return false;
       }
       if (!item.quantity || item.quantity <= 0) {
@@ -167,6 +215,24 @@ const CreateChallanForm = () => {
   };
 
   const handleSubmit = async (values) => {
+    console.log('Form Values before validation:', values);
+    console.log('Selected Customer State:', selectedCustomer);
+
+    console.log(values.gst)
+    
+    // Enhanced customer validation
+    if (!values.customer) {
+      message.error('Please select a customer');
+      return;
+    }
+
+    // Find the selected customer from the customers array
+    const customerFromList = customers.find(c => c._id === values.customer);
+    if (!customerFromList) {
+      message.error('Selected customer not found. Please refresh and try again.');
+      return;
+    }
+
     if (!validateItems()) {
       return;
     }
@@ -175,28 +241,54 @@ const CreateChallanForm = () => {
       setLoading(true);
 
       const challanData = {
-        user: 'current_user_id', // Replace with actual user ID
-        customer: values.customer,
-        challanNumber: values.challanNumber,
-        date: values.date.toISOString(),
+        challanNo: values.challanNo,
+        date: values.date.toDate(),
+        firmName: values.firmName,
+        gstin: values.gstin,
+        pan: values.pan,
+        contact: values.contact,
+        customer: {
+          id: customerFromList._id,
+          name: customerFromList.userName || customerFromList.firmName || '',
+          address: customerFromList.firmAddress || '',
+          gstin: customerFromList.gst || ''
+        },
+        poNumber: values.poNumber || '',
+        poDate: values.poDate ? values.poDate.toDate() : null,
+        vehicleNo: values.vehicleNo || '',
         items: items.map(({ key, ...item }) => item), // Remove key field
         subTotal: calculations.subTotal,
         gstPercentage: calculations.gstPercentage,
         gstAmount: calculations.gstAmount,
-        grandTotal: calculations.grandTotal
+        totalAmount: calculations.totalAmount,
+        eoe: values.eoe || false,
+        receiverSign: values.receiverSign || null,
+        issuedBy: values.issuedBy
       };
 
-      console.log('Challan Data:', challanData);
+      console.log('Challan Data to be sent:', challanData);
       
-      // Simulate API call
+      // Simulate API call - replace with your actual API call
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       message.success('Challan created successfully!');
       
-      // Reset form
+      // Reset form and state
       form.resetFields();
-      setItems([{ key: Date.now(), name: '', quantity: 1, rate: 0, total: 0 }]);
+      setSelectedCustomer(null);
+      setItems([{ key: Date.now(), particulars: '', hsnCode: '', quantity: 1, rate: 0, amount: 0 }]);
       generateChallanNumber();
+      
+      // Reset default values
+      form.setFieldsValue({
+        date: dayjs(),
+        firmName: 'ABC Traders',
+        gstin: '22ABCDE1234F1Z5',
+        pan: 'ABCDE1234F',
+        contact: '9876543210',
+        issuedBy: 'Ramesh Kumar',
+        eoe: false
+      });
       
     } catch (error) {
       console.error('Error creating challan:', error);
@@ -215,14 +307,27 @@ const CreateChallanForm = () => {
       render: (_, __, index) => index + 1,
     },
     {
-      title: 'Item Name',
-      key: 'name',
+      title: 'Particulars',
+      key: 'particulars',
       render: (_, record) => (
         <Input
-          placeholder="Enter item name"
-          value={record.name}
-          onChange={(e) => handleItemChange(record.key, 'name', e.target.value)}
-          status={!record.name ? 'error' : ''}
+          placeholder="Enter item particulars"
+          value={record.particulars}
+          onChange={(e) => handleItemChange(record.key, 'particulars', e.target.value)}
+          status={!record.particulars ? 'error' : ''}
+        />
+      ),
+    },
+    {
+      title: 'HSN Code',
+      key: 'hsnCode',
+      width: 120,
+      render: (_, record) => (
+        <Input
+          placeholder="HSN Code"
+          value={record.hsnCode}
+          onChange={(e) => handleItemChange(record.key, 'hsnCode', e.target.value)}
+          status={!record.hsnCode ? 'error' : ''}
         />
       ),
     },
@@ -259,13 +364,13 @@ const CreateChallanForm = () => {
       ),
     },
     {
-      title: 'Total (₹)',
-      key: 'total',
+      title: 'Amount (₹)',
+      key: 'amount',
       width: 130,
       align: 'right',
       render: (_, record) => (
         <Text strong className="text-green-600 text-base">
-          ₹{(record.total || 0).toLocaleString('en-IN', { 
+          ₹{(record.amount || 0).toLocaleString('en-IN', { 
             minimumFractionDigits: 2,
             maximumFractionDigits: 2 
           })}
@@ -329,7 +434,7 @@ const CreateChallanForm = () => {
             <Col xs={24} md={8}>
               <Form.Item
                 label="Challan Number"
-                name="challanNumber"
+                name="challanNo"
                 rules={[{ required: true, message: 'Challan number is required' }]}
               >
                 <Input
@@ -344,7 +449,6 @@ const CreateChallanForm = () => {
                 label="Date"
                 name="date"
                 rules={[{ required: true, message: 'Date is required' }]}
-                initialValue={dayjs()}
               >
                 <DatePicker
                   style={{ width: '100%' }}
@@ -355,25 +459,180 @@ const CreateChallanForm = () => {
             </Col>
             <Col xs={24} md={8}>
               <Form.Item
+                label="Issued By"
+                name="issuedBy"
+                rules={[{ required: true, message: 'Issued By is required' }]}
+              >
+                <Input
+                  prefix={<Users size={16} className="text-gray-400" />}
+                  placeholder="Enter issuer name"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Card>
+
+        {/* Firm Information */}
+        <Card 
+          title={
+            <span className="flex items-center gap-2 text-lg">
+              <Building size={20} className="text-green-600" />
+              Firm Information
+            </span>
+          }
+          className="shadow-sm"
+        >
+          <Row gutter={24}>
+            <Col xs={24} md={8}>
+              <Form.Item
+                label="Firm Name"
+                name="firmName"
+                rules={[{ required: true, message: 'Firm name is required' }]}
+              >
+                <Input placeholder="Enter firm name" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                label="GSTIN"
+                name="gstin"
+                rules={[{ required: true, message: 'GSTIN is required' }]}
+              >
+                <Input placeholder="Enter GSTIN" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                label="PAN"
+                name="pan"
+                rules={[{ required: true, message: 'PAN is required' }]}
+              >
+                <Input placeholder="Enter PAN" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={24}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                label="Contact"
+                name="contact"
+                rules={[{ required: true, message: 'Contact is required' }]}
+              >
+                <Input placeholder="Enter contact number" />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Card>
+
+        {/* Customer Information */}
+        <Card 
+          title={
+            <span className="flex items-center gap-2 text-lg">
+              <Users size={20} className="text-purple-600" />
+              Customer Information
+            </span>
+          }
+          className="shadow-sm"
+        >
+          <Row gutter={24}>
+            <Col xs={24} md={12}>
+              <Form.Item
                 label="Customer"
                 name="customer"
-                rules={[{ required: true, message: 'Please select a customer' }]}
+                
               >
-                <Select
-                  placeholder="Select customer"
-                  showSearch
-                  optionFilterProp="children"
-                  suffixIcon={<Users size={16} />}
-                >
-                  {customers.map(customer => (
-                    <Option key={customer._id} value={customer._id}>
-                      <div>
-                        <div className="font-medium">{customer.name}</div>
-                        <div className="text-xs text-gray-500">{customer.email}</div>
-                      </div>
-                    </Option>
-                  ))}
-                </Select>
+                <div className="flex gap-2">
+                  <Select
+                    placeholder="Select customer"
+                    showSearch
+                    optionFilterProp="children"
+                    style={{ flex: 1 }}
+                    notFoundContent="No customer found"
+                    onChange={handleCustomerChange} //
+                    value={form.getFieldValue('customer')}
+                    filterOption={(input, option) =>
+                      option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                    }
+                  >
+                    {customers.map(customer => (
+                      <Option key={customer._id} value={customer._id}>
+                        {customer.userName || customer.firmName} 
+                        {customer.firmName && customer.userName && ` (${customer.firmName})`}
+                      </Option>
+                    ))}
+                  </Select>
+                  <Button
+                    type="dashed"
+                    icon={<Plus size={16} />}
+                    onClick={() => setCustomerModalVisible(true)}
+                    className="flex items-center gap-1"
+                  >
+                    Add Customer
+                  </Button>
+                </div>
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          {/* Display selected customer details */}
+          {selectedCustomer && (
+            <Alert
+              message="Selected Customer Details"
+              description={
+                <div>
+                  <p><strong>Name:</strong> {selectedCustomer.userName}</p>
+                  <p><strong>Firm:</strong> {selectedCustomer.firmName}</p>
+                  <p><strong>GST:</strong> {selectedCustomer.gst}</p>
+                  <p><strong>Address:</strong> {selectedCustomer.firmAddress}</p>
+                </div>
+              }
+              type="info"
+              showIcon
+              className="mt-4"
+            />
+          )}
+        </Card>
+
+        {/* Purchase Order & Vehicle Information */}
+        <Card 
+          title={
+            <span className="flex items-center gap-2 text-lg">
+              <FileText size={20} className="text-orange-600" />
+              Purchase Order & Vehicle Details
+            </span>
+          }
+          className="shadow-sm"
+        >
+          <Row gutter={24}>
+            <Col xs={24} md={8}>
+              <Form.Item
+                label="PO Number"
+                name="poNumber"
+              >
+                <Input placeholder="Enter PO Number" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                label="PO Date"
+                name="poDate"
+              >
+                <DatePicker
+                  style={{ width: '100%' }}
+                  format="DD/MM/YYYY"
+                  suffixIcon={<Calendar size={16} />}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                label="Vehicle Number"
+                name="vehicleNo"
+              >
+                <Input 
+                  prefix={<Truck size={16} className="text-gray-400" />}
+                  placeholder="Enter vehicle number" 
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -409,7 +668,7 @@ const CreateChallanForm = () => {
             className="mb-4"
           />
           
-          {items.some(item => !item.name || item.quantity <= 0 || item.rate <= 0) && (
+          {items.some(item => !item.particulars || !item.hsnCode || item.quantity <= 0 || item.rate <= 0) && (
             <Alert
               message="Please fill all item details"
               type="warning"
@@ -458,11 +717,44 @@ const CreateChallanForm = () => {
             </Col>
             <Col xs={24} sm={8}>
               <div className="bg-green-50 p-4 rounded-lg text-center border border-green-200">
-                <Text className="text-green-600 font-medium block mb-2">Grand Total</Text>
+                <Text className="text-green-600 font-medium block mb-2">Total Amount</Text>
                 <Title level={2} className="text-green-700 mb-0">
-                  {formatCurrency(calculations.grandTotal)}
+                  {formatCurrency(calculations.totalAmount)}
                 </Title>
               </div>
+            </Col>
+          </Row>
+        </Card>
+
+        {/* Additional Fields */}
+        <Card 
+          title={
+            <span className="flex items-center gap-2 text-lg">
+              <CheckSquare size={20} className="text-indigo-600" />
+              Additional Information
+            </span>
+          }
+          className="shadow-sm"
+        >
+          <Row gutter={24}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                label="Receiver Signature"
+                name="receiverSign"
+              >
+                <Input placeholder="Enter receiver name/signature" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="eoe"
+                valuePropName="checked"
+                style={{ marginTop: '30px' }}
+              >
+                <Checkbox>
+                  <Text>End of Entry (EOE)</Text>
+                </Checkbox>
+              </Form.Item>
             </Col>
           </Row>
         </Card>
@@ -479,7 +771,7 @@ const CreateChallanForm = () => {
               htmlType="submit"
               icon={<Save size={16} />}
               loading={loading}
-              disabled={items.length === 0 || calculations.grandTotal === 0}
+              disabled={items.length === 0 || calculations.totalAmount === 0}
               className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
             >
               {loading ? 'Creating...' : 'Create Challan'}
@@ -487,6 +779,132 @@ const CreateChallanForm = () => {
           </div>
         </Card>
       </Form>
+
+      {/* Add Customer Modal */}
+      <Modal
+        title="Add New Customer"
+        open={customerModalVisible}
+        onCancel={() => {
+          setCustomerModalVisible(false);
+          customerForm.resetFields();
+        }}
+        footer={null}
+        width={600}
+      >
+        <Form
+          form={customerForm}
+          layout="vertical"
+          onFinish={handleAddCustomer}
+          className="mt-4"
+        >
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                label="User Name"
+                name="userName"
+                rules={[{ required: true, message: 'User name is required' }]}
+              >
+                <Input placeholder="Enter user name" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                label="Firm Name"
+                name="firmName"
+                rules={[{ required: true, message: 'Firm name is required' }]}
+              >
+                <Input placeholder="Enter firm name" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                label="Email"
+                name="email"
+                rules={[
+                  { required: true, message: 'Email is required' },
+                  { type: 'email', message: 'Please enter a valid email' }
+                ]}
+              >
+                <Input placeholder="Enter email address" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                label="Phone"
+                name="phone"
+                rules={[
+                  { required: true, message: 'Phone is required' },
+                  { pattern: /^[0-9+\-\s()]{10,15}$/, message: 'Enter valid phone number' }
+                ]}
+              >
+                <Input placeholder="Enter phone number" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                label="Alternative Phone"
+                name="alternativePhone"
+                rules={[
+                  { required: true, message: 'Alternative phone is required' },
+                  { pattern: /^[0-9+\-\s()]{10,15}$/, message: 'Enter valid phone number' }
+                ]}
+              >
+                <Input placeholder="Enter alternative phone" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                label="GST Number"
+                name="gst"
+                rules={[{ required: true, message: 'GST number is required' }]}
+              >
+                <Input placeholder="Enter GST number" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item
+            label="Firm Address"
+            name="firmAddress"
+            rules={[{ required: true, message: 'Firm address is required' }]}
+          >
+            <TextArea rows={3} placeholder="Enter firm address" />
+          </Form.Item>
+
+          <Form.Item
+            label="Description"
+            name="description"
+            rules={[{ required: true, message: 'Description is required' }]}
+          >
+            <TextArea rows={3} placeholder="Enter description" />
+          </Form.Item>
+
+          <div className="flex justify-end gap-2 mt-6">
+            <Button 
+              onClick={() => {
+                setCustomerModalVisible(false);
+                customerForm.resetFields();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="primary" 
+              htmlType="submit" 
+              loading={customerLoading}
+              icon={<Save size={16} />}
+            >
+              {customerLoading ? 'Adding...' : 'Add Customer'}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
     </div>
   );
 };

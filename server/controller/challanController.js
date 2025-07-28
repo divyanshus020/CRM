@@ -1,45 +1,69 @@
 import { Challan } from "../model/challanModel.js"; // adjust path as needed
 
+
+
 export const createChallan = async (req, res) => {
   try {
     const {
-      customer,
-      challanNumber,
+      challanNo,
       date,
+      firmName,
+      gstin,
+      pan,
+      contact,
+      customer,
+      poNumber,
+      poDate,
+      vehicleNo,
       items,
-      gstPercentage = 0
+      issuedBy,
+      eoe = false,
+      receiverSign = null
     } = req.body;
 
-    const user = req.id; // 👈 user from auth middleware (e.g., token)
-
-    if (!customer || !challanNumber || !items || items.length === 0) {
+    // Validation
+    if (
+      !challanNo ||
+      !firmName ||
+      !gstin ||
+      !pan ||
+      !contact ||
+      !customer ||
+      !customer.name ||
+      !customer.address ||
+      !items ||
+      items.length === 0 ||
+      !issuedBy
+    ) {
       return res.status(400).json({ message: "Required fields are missing" });
     }
 
-    // 🔁 Calculate item totals
+    // Calculate amount per item
     const calculatedItems = items.map(item => {
-      const total = item.quantity * item.rate;
-      return { ...item, total };
+      const amount = item.quantity * item.rate;
+      return { ...item, amount };
     });
 
-    // ➕ Calculate subTotal
-    const subTotal = calculatedItems.reduce((sum, item) => sum + item.total, 0);
+    // Calculate totalAmount
+    const totalAmount = calculatedItems.reduce((sum, item) => sum + item.amount, 0);
 
-    // 🧾 Calculate GST and Grand Total
-    const gstAmount = (subTotal * gstPercentage) / 100;
-    const grandTotal = subTotal + gstAmount;
-
-    // ✅ Create and save Challan
+    // Create Challan
     const newChallan = await Challan.create({
-      user,
-      customer,
-      challanNumber,
+      challanNo,
       date: date || new Date(),
+      firmName,
+      gstin,
+      pan,
+      contact,
+      customer,
+      poNumber,
+      poDate,
+      vehicleNo,
       items: calculatedItems,
-      subTotal,
-      gstPercentage,
-      gstAmount,
-      grandTotal
+      totalAmount,
+      eoe,
+      receiverSign,
+      issuedBy
     });
 
     return res.status(201).json({
@@ -47,7 +71,6 @@ export const createChallan = async (req, res) => {
       message: "Challan created successfully",
       challan: newChallan
     });
-
   } catch (error) {
     console.error("Create Challan Error:", error);
     return res.status(500).json({
@@ -58,10 +81,11 @@ export const createChallan = async (req, res) => {
   }
 };
 
+
 export const getAllChallans = async (req, res) => {
   try {
     console.log("Fetching all challans for user:", req.id);
-    const challans = await Challan.find({ user: req.id }).sort({ createdAt: -1 }).populate('customer');
+    const challans = await Challan.find({}).sort({ createdAt: -1 }).populate('customer');
     console.log(challans)
     return res.status(200).json(challans);
   } catch (error) {
