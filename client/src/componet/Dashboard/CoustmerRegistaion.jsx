@@ -12,8 +12,9 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { newCostomer } from "../../api/api";
-import { toast } from "sonner";
+
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const CustomerRegistrationForm = () => {
   const [form] = Form.useForm();
@@ -28,6 +29,7 @@ const CustomerRegistrationForm = () => {
       if (data.success) {
         toast.success(data.message || "Customer created successfully!", {
           position: "top-center",
+          autoClose: 5000,
         });
         form.resetFields();
       }

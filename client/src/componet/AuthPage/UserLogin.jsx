@@ -3,7 +3,8 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { FaEnvelope, FaLock } from 'react-icons/fa';
 import { loginUser } from '../../api/api';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
+// 
 
 const Login = () => {
   const formik = useFormik({
@@ -25,7 +26,11 @@ const Login = () => {
         const data = await loginUser(values); // ✅ wait for API to finish
         console.log('Response Data:', data);
         if(data.success) {
-          toast.success('Login Successful!');
+          toast.success(data.message || 'Login successful!', {
+            duration: 8000,
+            position: 'top-center',
+          });
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate a delay
           window.location.href = '/dashboard'; // Redirect to dashboard on success
         }
         

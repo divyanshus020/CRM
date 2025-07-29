@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Card,
   Form,
@@ -35,7 +35,9 @@ import {
 } from 'lucide-react';
 
 import dayjs from 'dayjs';
-import { getAllCustomers, newCostomer } from '../../api/api';
+import { createChallan, getAllCustomers, newCostomer } from '../../api/api';
+import { toast } from 'react-toastify';
+
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -48,7 +50,7 @@ const CreateChallanForm = () => {
   const [customerModalVisible, setCustomerModalVisible] = useState(false);
   const [customerLoading, setCustomerLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState(null); // Add state to track selected customer
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [items, setItems] = useState([
     { key: Date.now(), particulars: '', hsnCode: '', quantity: 1, rate: 0, amount: 0 }
   ]);
@@ -59,64 +61,47 @@ const CreateChallanForm = () => {
     totalAmount: 0
   });
 
-  // Fetch customers from database
-  const fetchCustomers = async () => {
-    try {
-      const response = await getAllCustomers();
-      console.log('Fetched Customers:', response.data);
-      if (response.success) {
-        setCustomers(response.data);
-      } else {
-        message.error('Failed to fetch customers');
-      }
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-      message.error('Failed to load customers');
-    }
-  };
-
-  useEffect(() => {
-    fetchCustomers();
-    generateChallanNumber();
-    // Set default values
-    form.setFieldsValue({
-      date: dayjs(),
-      firmName: 'ABC Traders',
-      gstin: '22ABCDE1234F1Z5',
-      pan: 'ABCDE1234F',
-      contact: '9876543210',
-      issuedBy: 'Ramesh Kumar',
-      eoe: false
+  // Memoized currency formatter
+  const formatCurrency = useMemo(() => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
     });
   }, []);
 
-  useEffect(() => {
-    calculateTotals();
-  }, [items, calculations.gstPercentage]);
-
-  const generateChallanNumber = () => {
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    const challanNumber = `CH-${random}`;
-    form.setFieldsValue({ challanNo: challanNumber });
-  };
-
-  const calculateTotals = () => {
+  // Memoized calculations
+  const calculatedTotals = useMemo(() => {
     const subTotal = items.reduce((sum, item) => sum + (item.amount || 0), 0);
     const gstAmount = (subTotal * calculations.gstPercentage) / 100;
     const totalAmount = subTotal + gstAmount;
+    
+    return { subTotal, gstAmount, totalAmount };
+  }, [items, calculations.gstPercentage]);
 
+  // Update calculations when memoized values change
+  useEffect(() => {
     setCalculations(prev => ({
       ...prev,
-      subTotal,
-      gstAmount,
-      totalAmount
+      ...calculatedTotals
     }));
-  };
+  }, [calculatedTotals]);
 
-  const handleItemChange = (key, field, value) => {
-    const newItems = items.map(item => {
-      if (item.key === key) {
+  // Memoized customer options for Select
+  const customerOptions = useMemo(() => {
+    return customers.map(customer => (
+      <Option key={customer._id} value={customer._id}>
+        {customer.userName || customer.firmName} 
+        {customer.firmName && customer.userName && ` (${customer.firmName})`}
+      </Option>
+    ));
+  }, [customers]);
+
+  // Optimized item change handler with useCallback
+  const handleItemChange = useCallback((key, field, value) => {
+    setItems(prevItems => {
+      return prevItems.map(item => {
+        if (item.key !== key) return item;
+        
         const updatedItem = { ...item, [field]: value };
         
         // Calculate amount when quantity or rate changes
@@ -127,178 +112,12 @@ const CreateChallanForm = () => {
         }
         
         return updatedItem;
-      }
-      return item;
-    });
-    
-    setItems(newItems);
-  };
-
-  const addItem = () => {
-    const newItem = {
-      key: Date.now(),
-      particulars: '',
-      hsnCode: '',
-      quantity: 1,
-      rate: 0,
-      amount: 0
-    };
-    setItems([...items, newItem]);
-  };
-
-  const removeItem = (key) => {
-    if (items.length > 1) {
-      setItems(items.filter(item => item.key !== key));
-    } else {
-      message.warning('At least one item is required');
-    }
-  };
-
-  const handleGSTChange = (value) => {
-    setCalculations(prev => ({
-      ...prev,
-      gstPercentage: value || 0
-    }));
-  };
-
-  // Handle customer selection change
-  const handleCustomerChange = (customerId) => {
-    const customer = customers.find(c => c._id === customerId);
-    setSelectedCustomer(customer);
-    console.log('Selected Customer:', customer);
-  };
-
-  const handleAddCustomer = async (values) => {
-    try {
-      setCustomerLoading(true);
-      console.log('Adding Customer with values:', values);
-      const response = await newCostomer(values);
-      
-      if (response.success) {
-        message.success('Customer added successfully!');
-        setCustomerModalVisible(false);
-        customerForm.resetFields();
-        // Refresh customer list
-        await fetchCustomers();
-      } else {
-        message.error('Failed to add customer');
-      }
-    } catch (error) {
-      console.error('Error adding customer:', error);
-      message.error('Failed to add customer');
-    } finally {
-      setCustomerLoading(false);
-    }
-  };
-
-  const validateItems = () => {
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (!item.particulars || !item.particulars.trim()) {
-        message.error(`Item ${i + 1}: Particulars is required`);
-        return false;
-      }
-      if (!item.hsnCode || !item.hsnCode.trim()) {
-        message.error(`Item ${i + 1}: HSN Code is required`);
-        return false;
-      }
-      if (!item.quantity || item.quantity <= 0) {
-        message.error(`Item ${i + 1}: Quantity must be greater than 0`);
-        return false;
-      }
-      if (!item.rate || item.rate <= 0) {
-        message.error(`Item ${i + 1}: Rate must be greater than 0`);
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const handleSubmit = async (values) => {
-    console.log('Form Values before validation:', values);
-    console.log('Selected Customer State:', selectedCustomer);
-
-    console.log(values.gst)
-    
-    // Enhanced customer validation
-    if (!values.customer) {
-      message.error('Please select a customer');
-      return;
-    }
-
-    // Find the selected customer from the customers array
-    const customerFromList = customers.find(c => c._id === values.customer);
-    if (!customerFromList) {
-      message.error('Selected customer not found. Please refresh and try again.');
-      return;
-    }
-
-    if (!validateItems()) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const challanData = {
-        challanNo: values.challanNo,
-        date: values.date.toDate(),
-        firmName: values.firmName,
-        gstin: values.gstin,
-        pan: values.pan,
-        contact: values.contact,
-        customer: {
-          id: customerFromList._id,
-          name: customerFromList.userName || customerFromList.firmName || '',
-          address: customerFromList.firmAddress || '',
-          gstin: customerFromList.gst || ''
-        },
-        poNumber: values.poNumber || '',
-        poDate: values.poDate ? values.poDate.toDate() : null,
-        vehicleNo: values.vehicleNo || '',
-        items: items.map(({ key, ...item }) => item), // Remove key field
-        subTotal: calculations.subTotal,
-        gstPercentage: calculations.gstPercentage,
-        gstAmount: calculations.gstAmount,
-        totalAmount: calculations.totalAmount,
-        eoe: values.eoe || false,
-        receiverSign: values.receiverSign || null,
-        issuedBy: values.issuedBy
-      };
-
-      console.log('Challan Data to be sent:', challanData);
-      
-      // Simulate API call - replace with your actual API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      message.success('Challan created successfully!');
-      
-      // Reset form and state
-      form.resetFields();
-      setSelectedCustomer(null);
-      setItems([{ key: Date.now(), particulars: '', hsnCode: '', quantity: 1, rate: 0, amount: 0 }]);
-      generateChallanNumber();
-      
-      // Reset default values
-      form.setFieldsValue({
-        date: dayjs(),
-        firmName: 'ABC Traders',
-        gstin: '22ABCDE1234F1Z5',
-        pan: 'ABCDE1234F',
-        contact: '9876543210',
-        issuedBy: 'Ramesh Kumar',
-        eoe: false
       });
-      
-    } catch (error) {
-      console.error('Error creating challan:', error);
-      message.error('Failed to create challan. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
+  }, []);
 
-  const columns = [
+  // Memoized table columns to prevent recreation on each render
+  const columns = useMemo(() => [
     {
       title: '#',
       key: 'index',
@@ -370,10 +189,7 @@ const CreateChallanForm = () => {
       align: 'right',
       render: (_, record) => (
         <Text strong className="text-green-600 text-base">
-          ₹{(record.amount || 0).toLocaleString('en-IN', { 
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2 
-          })}
+          {formatCurrency.format(record.amount || 0)}
         </Text>
       ),
     },
@@ -398,14 +214,240 @@ const CreateChallanForm = () => {
         </Popconfirm>
       ),
     },
-  ];
+  ], [handleItemChange, formatCurrency, items.length]);
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-    }).format(amount || 0);
-  };
+  // Cached customer fetch function
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const response = await getAllCustomers();
+      console.log('Fetched Customers:', response.data);
+      if (response.success) {
+        setCustomers(response.data);
+      } else {
+        message.error('Failed to fetch customers');
+      }
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      message.error('Failed to load customers');
+    }
+  }, []);
+
+  const generateChallanNumber = useCallback(() => {
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    const challanNumber = `CH-${random}`;
+    form.setFieldsValue({ challanNo: challanNumber });
+  }, [form]);
+
+  const addItem = useCallback(() => {
+    const newItem = {
+      key: Date.now(),
+      particulars: '',
+      hsnCode: '',
+      quantity: 1,
+      rate: 0,
+      amount: 0
+    };
+    setItems(prev => [...prev, newItem]);
+  }, []);
+
+  const removeItem = useCallback((key) => {
+    if (items.length > 1) {
+      setItems(prev => prev.filter(item => item.key !== key));
+    } else {
+      message.warning('At least one item is required');
+    }
+  }, [items.length]);
+
+  const handleGSTChange = useCallback((value) => {
+    setCalculations(prev => ({
+      ...prev,
+      gstPercentage: value || 0
+    }));
+  }, []);
+
+  const handleCustomerChange = useCallback((customerId) => {
+    const customer = customers.find(c => c._id === customerId);
+    setSelectedCustomer(customer);
+    console.log('Selected Customer:', customer);
+  }, [customers]);
+
+  const handleAddCustomer = useCallback(async (values) => {
+    try {
+      setCustomerLoading(true);
+      console.log('Adding Customer with values:', values);
+      const response = await newCostomer(values);
+      
+      if (response.success) {
+        toast.success('Customer added successfully!',{
+          position: 'top-center',
+          autoClose: 5000,
+        });
+        setCustomerModalVisible(false);
+        customerForm.resetFields();
+        await fetchCustomers();
+      } else {
+        message.error('Failed to add customer');
+      }
+    } catch (error) {
+      console.error('Error adding customer:', error);
+      message.error('Failed to add customer');
+    } finally {
+      setCustomerLoading(false);
+    }
+  }, [customerForm, fetchCustomers]);
+
+  const validateItems = useCallback(() => {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (!item.particulars || !item.particulars.trim()) {
+        message.error(`Item ${i + 1}: Particulars is required`);
+        return false;
+      }
+      if (!item.hsnCode || !item.hsnCode.trim()) {
+        message.error(`Item ${i + 1}: HSN Code is required`);
+        toast.error(`Item ${i + 1}: HSN Code is required`,{
+          position: 'top-center',
+        });
+        return false;
+      }
+      if (!item.quantity || item.quantity <= 0) {
+        message.error(`Item ${i + 1}: Quantity must be greater than 0`);
+        return false;
+      }
+      if (!item.rate || item.rate <= 0) {
+        message.error(`Item ${i + 1}: Rate must be greater than 0`);
+        return false;
+      }
+    }
+    return true;
+  }, [items]);
+
+  const resetForm = useCallback(() => {
+    form.resetFields();
+    setSelectedCustomer(null);
+    setItems([{ key: Date.now(), particulars: '', hsnCode: '', quantity: 1, rate: 0, amount: 0 }]);
+    generateChallanNumber();
+    
+    // Reset default values
+    form.setFieldsValue({
+      date: dayjs(),
+      firmName: 'ABC Traders',
+      gstin: '22ABCDE1234F1Z5',
+      pan: 'ABCDE1234F',
+      contact: '9876543210',
+      issuedBy: 'Ramesh Kumar',
+      eoe: false
+    });
+  }, [form, generateChallanNumber]);
+
+  const handleSubmit = useCallback(async (values) => {
+    console.log('Form Values before validation:', values);
+    console.log('Selected Customer State:', selectedCustomer);
+
+    values.customer = selectedCustomer;
+
+    if (!values.customer) {
+      message.error('Please select a customer');
+      return;
+    }
+
+    const customerFromList = customers.find(c => c._id === values.customer._id);
+    if (!customerFromList) {
+      message.error('Selected customer not found. Please refresh and try again.');
+      return;
+    }
+
+    if (!validateItems()) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const challanData = {
+        challanNo: values.challanNo,
+        date: values.date.toDate(),
+        firmName: values.firmName,
+        gstin: values.gstin,
+        pan: values.pan,
+        contact: values.contact,
+        customer: {
+          id: customerFromList._id,
+          name: customerFromList.userName || customerFromList.firmName || '',
+          address: customerFromList.firmAddress || '',
+          gstin: customerFromList.gst || ''
+        },
+        poNumber: values.poNumber || '',
+        poDate: values.poDate ? values.poDate.toDate() : null,
+        vehicleNo: values.vehicleNo || '',
+        items: items.map(({ key, ...item }) => item),
+        subTotal: calculations.subTotal,
+        gstPercentage: calculations.gstPercentage,
+        gstAmount: calculations.gstAmount,
+        totalAmount: calculations.totalAmount,
+        eoe: values.eoe || false,
+        receiverSign: values.receiverSign || null,
+        issuedBy: values.issuedBy
+      };
+
+      console.log('Challan Data to be sent:', challanData);
+      
+      const response = await createChallan(challanData);
+
+      if(response.success) {
+
+        toast.success(response.message || 'Challan created successfully!', {
+          position: 'top-center',
+          autoClose: 8000,
+        });
+
+         message.success('Challan created successfully!');
+         resetForm();
+      }
+
+      
+     
+      
+    } catch (error) {
+      console.error('Error creating challan:', error);
+      message.error('Failed to create challan. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCustomer, customers, validateItems, items, calculations, resetForm]);
+
+  // Initialize component
+  useEffect(() => {
+    fetchCustomers();
+    generateChallanNumber();
+    
+    // Set default values
+    form.setFieldsValue({
+      date: dayjs(),
+      firmName: 'ABC Traders',
+      gstin: '22ABCDE1234F1Z5',
+      pan: 'ABCDE1234F',
+      contact: '9876543210',
+      issuedBy: 'Ramesh Kumar',
+      eoe: false
+    });
+  }, [fetchCustomers, generateChallanNumber, form]);
+
+  // Validation alert component
+  const ValidationAlert = useMemo(() => {
+    const hasInvalidItems = items.some(item => 
+      !item.particulars || !item.hsnCode || item.quantity <= 0 || item.rate <= 0
+    );
+    
+    return hasInvalidItems ? (
+      <Alert
+        message="Please fill all item details"
+        type="warning"
+        showIcon
+        className="mb-4"
+      />
+    ) : null;
+  }, [items]);
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen">
@@ -539,7 +581,6 @@ const CreateChallanForm = () => {
               <Form.Item
                 label="Customer"
                 name="customer"
-                
               >
                 <div className="flex gap-2">
                   <Select
@@ -548,18 +589,13 @@ const CreateChallanForm = () => {
                     optionFilterProp="children"
                     style={{ flex: 1 }}
                     notFoundContent="No customer found"
-                    onChange={handleCustomerChange} //
+                    onChange={handleCustomerChange}
                     value={form.getFieldValue('customer')}
                     filterOption={(input, option) =>
                       option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                     }
                   >
-                    {customers.map(customer => (
-                      <Option key={customer._id} value={customer._id}>
-                        {customer.userName || customer.firmName} 
-                        {customer.firmName && customer.userName && ` (${customer.firmName})`}
-                      </Option>
-                    ))}
+                    {customerOptions}
                   </Select>
                   <Button
                     type="dashed"
@@ -668,14 +704,7 @@ const CreateChallanForm = () => {
             className="mb-4"
           />
           
-          {items.some(item => !item.particulars || !item.hsnCode || item.quantity <= 0 || item.rate <= 0) && (
-            <Alert
-              message="Please fill all item details"
-              type="warning"
-              showIcon
-              className="mb-4"
-            />
-          )}
+          {ValidationAlert}
         </Card>
 
         {/* Calculations */}
@@ -693,7 +722,7 @@ const CreateChallanForm = () => {
               <div className="bg-blue-50 p-4 rounded-lg text-center border border-blue-200">
                 <Text className="text-blue-600 font-medium block mb-2">Sub Total</Text>
                 <Title level={3} className="text-blue-700 mb-0">
-                  {formatCurrency(calculations.subTotal)}
+                  {formatCurrency.format(calculations.subTotal)}
                 </Title>
               </div>
             </Col>
@@ -711,7 +740,7 @@ const CreateChallanForm = () => {
                   style={{ width: '100%', marginBottom: 8 }}
                 />
                 <Text className="text-orange-700 font-semibold text-lg block text-center">
-                  {formatCurrency(calculations.gstAmount)}
+                  {formatCurrency.format(calculations.gstAmount)}
                 </Text>
               </div>
             </Col>
@@ -719,7 +748,7 @@ const CreateChallanForm = () => {
               <div className="bg-green-50 p-4 rounded-lg text-center border border-green-200">
                 <Text className="text-green-600 font-medium block mb-2">Total Amount</Text>
                 <Title level={2} className="text-green-700 mb-0">
-                  {formatCurrency(calculations.totalAmount)}
+                  {formatCurrency.format(calculations.totalAmount)}
                 </Title>
               </div>
             </Col>
@@ -762,7 +791,7 @@ const CreateChallanForm = () => {
         {/* Submit Button */}
         <Card className="shadow-sm">
           <div className="flex justify-end gap-4">
-            <Button size="large" onClick={() => window.location.reload()}>
+            <Button size="large" onClick={resetForm}>
               Reset
             </Button>
             <Button

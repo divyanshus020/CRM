@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, Edit3, Trash2, Plus, RefreshCw, TrendingUp, FileText, DollarSign, UserPlus } from 'lucide-react';
 import { deleteChallan, getAllChallans } from '../../api/api';
+import { toast } from 'react-toastify';
 
 const Dashboard = () => {
   const [challans, setChallans] = useState([]);
@@ -9,127 +10,132 @@ const Dashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // Delete confirmation modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [challanToDelete, setChallanToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Mock data for demonstration (15+ records to show pagination)
   const mockChallans = [
     {
       _id: '1',
-      challanNumber: 'CH001',
+      challanNo: 'CH001',
       customer: { name: 'Rajesh Kumar' },
+      contact: '9876543210',
       date: '2025-01-15',
-      subTotal: 50000,
-      grandTotal: 59000
+      totalAmount: 59000
     },
     {
       _id: '2',
-      challanNumber: 'CH002',
+      challanNo: 'CH002',
       customer: { name: 'Priya Sharma' },
+      contact: '9876543211',
       date: '2025-01-14',
-      subTotal: 25000,
-      grandTotal: 29500
+      totalAmount: 29500
     },
     {
       _id: '3',
-      challanNumber: 'CH003',
+      challanNo: 'CH003',
       customer: { name: 'Amit Singh' },
+      contact: '9876543212',
       date: '2025-01-13',
-      subTotal: 75000,
-      grandTotal: 88500
+      totalAmount: 88500
     },
     {
       _id: '4',
-      challanNumber: 'CH004',
+      challanNo: 'CH004',
       customer: { name: 'Sunita Gupta' },
+      contact: '9876543213',
       date: '2025-01-12',
-      subTotal: 35000,
-      grandTotal: 41300
+      totalAmount: 41300
     },
     {
       _id: '5',
-      challanNumber: 'CH005',
+      challanNo: 'CH005',
       customer: { name: 'Vikram Singh' },
+      contact: '9876543214',
       date: '2025-01-11',
-      subTotal: 45000,
-      grandTotal: 53100
+      totalAmount: 53100
     },
     {
       _id: '6',
-      challanNumber: 'CH006',
+      challanNo: 'CH006',
       customer: { name: 'Meera Jain' },
+      contact: '9876543215',
       date: '2025-01-10',
-      subTotal: 65000,
-      grandTotal: 76700
+      totalAmount: 76700
     },
     {
       _id: '7',
-      challanNumber: 'CH007',
+      challanNo: 'CH007',
       customer: { name: 'Rohit Patel' },
+      contact: '9876543216',
       date: '2025-01-09',
-      subTotal: 55000,
-      grandTotal: 64900
+      totalAmount: 64900
     },
     {
       _id: '8',
-      challanNumber: 'CH008',
+      challanNo: 'CH008',
       customer: { name: 'Kavya Reddy' },
+      contact: '9876543217',
       date: '2025-01-08',
-      subTotal: 42000,
-      grandTotal: 49560
+      totalAmount: 49560
     },
     {
       _id: '9',
-      challanNumber: 'CH009',
+      challanNo: 'CH009',
       customer: { name: 'Arjun Nair' },
+      contact: '9876543218',
       date: '2025-01-07',
-      subTotal: 38000,
-      grandTotal: 44840
+      totalAmount: 44840
     },
     {
       _id: '10',
-      challanNumber: 'CH010',
+      challanNo: 'CH010',
       customer: { name: 'Deepika Rao' },
+      contact: '9876543219',
       date: '2025-01-06',
-      subTotal: 52000,
-      grandTotal: 61360
+      totalAmount: 61360
     },
     {
       _id: '11',
-      challanNumber: 'CH011',
+      challanNo: 'CH011',
       customer: { name: 'Karan Sharma' },
+      contact: '9876543220',
       date: '2025-01-05',
-      subTotal: 48000,
-      grandTotal: 56640
+      totalAmount: 56640
     },
     {
       _id: '12',
-      challanNumber: 'CH012',
+      challanNo: 'CH012',
       customer: { name: 'Anjali Verma' },
+      contact: '9876543221',
       date: '2025-01-04',
-      subTotal: 62000,
-      grandTotal: 73160
+      totalAmount: 73160
     },
     {
       _id: '13',
-      challanNumber: 'CH013',
+      challanNo: 'CH013',
       customer: { name: 'Sanjay Kumar' },
+      contact: '9876543222',
       date: '2025-01-03',
-      subTotal: 33000,
-      grandTotal: 38940
+      totalAmount: 38940
     },
     {
       _id: '14',
-      challanNumber: 'CH014',
+      challanNo: 'CH014',
       customer: { name: 'Pooja Singh' },
+      contact: '9876543223',
       date: '2025-01-02',
-      subTotal: 71000,
-      grandTotal: 83780
+      totalAmount: 83780
     },
     {
       _id: '15',
-      challanNumber: 'CH015',
+      challanNo: 'CH015',
       customer: { name: 'Manish Agarwal' },
+      contact: '9876543224',
       date: '2025-01-01',
-      subTotal: 58000,
-      grandTotal: 68440
+      totalAmount: 68440
     }
   ];
 
@@ -170,7 +176,60 @@ const Dashboard = () => {
       currency: 'INR',
     }).format(amount || 0);
 
-  const totalValue = challans.reduce((sum, challan) => sum + (challan.grandTotal || 0), 0);
+  // Open delete confirmation modal
+  const openDeleteModal = (challan) => {
+    setChallanToDelete(challan);
+    setShowDeleteModal(true);
+  };
+
+  // Close delete confirmation modal
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setChallanToDelete(null);
+    setIsDeleting(false);
+  };
+
+  // Confirm delete challan function
+  const confirmDeleteChallan = async () => {
+    if (!challanToDelete) return;
+
+    try {
+      setIsDeleting(true);
+      
+      // Call actual delete API
+     const response = await deleteChallan(challanToDelete._id);
+
+     if(response.success) {
+      
+      // Update local state
+      const updatedChallans = challans.filter(challan => challan._id !== challanToDelete._id);
+      setChallans(updatedChallans);
+      
+      // Adjust current page if needed
+      const newTotalPages = Math.ceil(updatedChallans.length / itemsPerPage);
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(newTotalPages);
+      }
+      
+      closeDeleteModal();
+
+      
+      // Show success message (you can replace this with a toast notification)
+
+      toast.success('Challan deleted successfully!', {
+        position: 'top-center',
+        autoClose: 5000,
+      });
+    }
+      
+    } catch (error) {
+      console.error('Error deleting challan:', error);
+      alert('Failed to delete challan: ' + error.message);
+      setIsDeleting(false);
+    }
+  };
+
+  const totalValue = challans.reduce((sum, challan) => sum + (challan.totalAmount || 0), 0);
   const totalPages = Math.ceil(challans.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedChallans = challans.slice(startIndex, startIndex + itemsPerPage);
@@ -198,19 +257,6 @@ const Dashboard = () => {
       {children}
     </button>
   );
-
-  const handleDelete = async (challanId) => {
-    if (window.confirm('Are you sure you want to delete this challan?')) {
-      try {
-        await deleteChallan(challanId);   
-        setChallans(challans.filter(challan => challan._id !== challanId));
-        alert('Challan deleted successfully');
-      } catch (err) { 
-        console.error('Error deleting challan:', err);
-        alert('Failed to delete challan: ' + err.message);
-      }
-    }
-  };
 
   if (loading) {
     return (
@@ -321,12 +367,12 @@ const Dashboard = () => {
                     <div className="flex justify-between items-start mb-3">
                       <div>
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {challan.challanNumber}
+                          {challan.challanNo}
                         </span>
                       </div>
                       <div className="text-right">
                         <div className="text-sm font-semibold text-green-600">
-                          {formatCurrency(challan.grandTotal)}
+                          {formatCurrency(challan.totalAmount)}
                         </div>
                         <div className="text-xs text-gray-500">
                           {formatDate(challan.date)}
@@ -338,7 +384,7 @@ const Dashboard = () => {
                         {challan.customer?.name || 'N/A'}
                       </div>
                       <div className="text-xs text-gray-600 font-mono">
-                        Sub: {formatCurrency(challan.subTotal)}
+                        Total: {formatCurrency(challan.totalAmount)}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -350,14 +396,7 @@ const Dashboard = () => {
                         View
                       </ActionButton>
                       <ActionButton
-                        onClick={() => console.log('Edit', challan._id)}
-                        icon={Edit3}
-                        className="text-amber-600 hover:bg-amber-50 text-xs px-2 py-1"
-                      >
-                        Edit
-                      </ActionButton>
-                      <ActionButton
-                        onClick={() => handleDelete(challan._id)}
+                        onClick={() => openDeleteModal(challan)}
                         icon={Trash2}
                         className="text-red-600 hover:bg-red-50 text-xs px-2 py-1"
                       >
@@ -376,8 +415,8 @@ const Dashboard = () => {
                       <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Challan No.</th>
                       <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Customer</th>
                       <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Sub Total</th>
-                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Grand Total</th>
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contact</th>
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total Amount</th>
                       <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
@@ -386,7 +425,7 @@ const Dashboard = () => {
                       <tr key={challan._id} className="hover:bg-gray-50 transition-colors duration-150">
                         <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                           <span className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-blue-100 text-blue-800">
-                            {challan.challanNumber}
+                            {challan.challanNo}
                           </span>
                         </td>
                         <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
@@ -396,10 +435,10 @@ const Dashboard = () => {
                           {formatDate(challan.date)}
                         </td>
                         <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
-                          {formatCurrency(challan.subTotal)}
+                          {challan.contact || 'N/A'}
                         </td>
                         <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm font-semibold text-green-600 font-mono">
-                          {formatCurrency(challan.grandTotal)}
+                          {formatCurrency(challan.totalAmount)}
                         </td>
                         <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm">
                           <div className="flex items-center gap-1 sm:gap-2">
@@ -411,14 +450,7 @@ const Dashboard = () => {
                               <span className="hidden sm:inline">View</span>
                             </ActionButton>
                             <ActionButton
-                              onClick={() => console.log('Edit', challan._id)}
-                              icon={Edit3}
-                              className="text-amber-600 hover:bg-amber-50"
-                            >
-                              <span className="hidden sm:inline">Edit</span>
-                            </ActionButton>
-                            <ActionButton
-                              onClick={() => handleDelete(challan._id)}
+                              onClick={() => openDeleteModal(challan)}
                               icon={Trash2}
                               className="text-red-600 hover:bg-red-50"
                             >
@@ -489,6 +521,68 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl border border-gray-200">
+            <div className="flex items-center mb-4">
+              <div className="bg-red-100 rounded-full p-2 mr-3">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.268 19c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Confirm Delete</h3>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-700 mb-2">
+                Are you sure you want to delete this challan?
+              </p>
+              {challanToDelete && (
+                <div className="bg-gray-50 p-3 rounded border">
+                  <p className="text-sm">
+                    <span className="font-semibold">Challan No:</span> {challanToDelete.challanNo}
+                  </p>
+                  <p className="text-sm">
+                    <span className="font-semibold">Customer:</span> {challanToDelete.customer?.name || 'N/A'}
+                  </p>
+                  <p className="text-sm">
+                    <span className="font-semibold">Amount:</span> {formatCurrency(challanToDelete.totalAmount)}
+                  </p>
+                </div>
+              )}
+              <p className="text-red-600 text-sm mt-2">
+                <strong>Warning:</strong> This action cannot be undone.
+              </p>
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={closeDeleteModal}
+                disabled={isDeleting}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteChallan}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 flex items-center"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete Challan'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

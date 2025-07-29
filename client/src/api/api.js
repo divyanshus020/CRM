@@ -47,6 +47,19 @@ const getAuthHeaders = () => {
   };
 };
 
+export const createChallan = async (challanData) => {
+  try {
+    const response = await axiosInstance.post('challan/create-challan', challanData, {
+      headers: getAuthHeaders(),
+      withCredentials: true, // cookies send honge
+    });
+    console.log('Challan Created:', response.data);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, 'Failed to create challan');
+  }
+};
+
 // ✅ Get All Challans
 export const getAllChallans = async () => {
   try {

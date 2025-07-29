@@ -17,6 +17,7 @@ export const createChallan = async (req, res) => {
       vehicleNo,
       items,
       issuedBy,
+      totalAmount,
       eoe = false,
       receiverSign = null
     } = req.body;
@@ -45,7 +46,7 @@ export const createChallan = async (req, res) => {
     });
 
     // Calculate totalAmount
-    const totalAmount = calculatedItems.reduce((sum, item) => sum + item.amount, 0);
+    //const totalAmount = calculatedItems.reduce((sum, item) => sum + item.amount, 0);
 
     // Create Challan
     const newChallan = await Challan.create({
@@ -101,7 +102,8 @@ export const getAllChallans = async (req, res) => {
 export const getChallanByID = async(req, res) => {
   try {
     const { id } = req.params;
-    const challan = await Challan.findById(id).populate('customer').populate("user", "name email");
+    console.log("Fetching challan with ID:", id);
+    const challan = await Challan.findById(id).populate('customer');
     
     if (!challan) {
       return res.status(404).json({ message: "Challan not found" });
@@ -192,7 +194,7 @@ export const deleteChallan = async (req, res) => {
       return res.status(404).json({ message: "Challan not found" });
     }
 
-    return res.status(200).json({ message: "Challan deleted successfully" });
+    return res.status(200).json({ message: "Challan deleted successfully", success: true });
   } catch (error) {
     console.error("Error deleting challan:", error);
     res.status(500).json({ message: "Server error while deleting challan" });

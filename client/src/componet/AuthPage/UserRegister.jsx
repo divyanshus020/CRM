@@ -3,7 +3,8 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { FaUser, FaEnvelope, FaLock } from 'react-icons/fa';
 import { registerUser } from '../../api/api';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
+
 
 const Register = () => {
   const formik = useFormik({
@@ -29,8 +30,14 @@ const Register = () => {
     const data = await registerUser(values); // ✅ wait for API to finish
     console.log('Response Data:', data);
     if(data.success) {
-      toast.success('Registration Successful!');
-      window.location.href = '/login'; // Redirect to login page
+      toast.success('Registration Successful!',{
+        position: 'top-center',
+        autoClose: 5000,
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate a delay
+      window.location.href = '/login'; // Redirect to login page on success
+      
     }
     
   } catch (error) {
