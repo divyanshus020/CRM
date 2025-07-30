@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 
 const itemSchema = new mongoose.Schema({
   particulars: { type: String, required: true },
-  hsnCode: { type: String, required: true },
+  hsnCode: { type: String,  },
   quantity: { type: Number, required: true },
   rate: { type: Number, required: true },
   amount: { type: Number, required: true }

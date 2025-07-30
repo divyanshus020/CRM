@@ -146,7 +146,7 @@ const CreateChallanForm = () => {
           placeholder="HSN Code"
           value={record.hsnCode}
           onChange={(e) => handleItemChange(record.key, 'hsnCode', e.target.value)}
-          status={!record.hsnCode ? 'error' : ''}
+          //status={!record.hsnCode ? 'error' : ''}
         />
       ),
     },
@@ -301,17 +301,19 @@ const CreateChallanForm = () => {
       const item = items[i];
       if (!item.particulars || !item.particulars.trim()) {
         message.error(`Item ${i + 1}: Particulars is required`);
+        toast.error(" Particulars is required")
         return false;
       }
-      if (!item.hsnCode || !item.hsnCode.trim()) {
-        message.error(`Item ${i + 1}: HSN Code is required`);
-        toast.error(`Item ${i + 1}: HSN Code is required`,{
-          position: 'top-center',
-        });
-        return false;
-      }
+      // if (!item.hsnCode || !item.hsnCode.trim()) {
+      //   message.error(`Item ${i + 1}: HSN Code is required`);
+      //   toast.error(`Item ${i + 1}: HSN Code is required`,{
+      //     position: 'top-center',
+      //   });
+      //   return false;
+      // }
       if (!item.quantity || item.quantity <= 0) {
         message.error(`Item ${i + 1}: Quantity must be greater than 0`);
+        toast.error("quantity must be at least one")
         return false;
       }
       if (!item.rate || item.rate <= 0) {
@@ -704,7 +706,7 @@ const CreateChallanForm = () => {
             className="mb-4"
           />
           
-          {ValidationAlert}
+          {ValidationAlert} //
         </Card>
 
         {/* Calculations */}
