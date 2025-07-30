@@ -4,9 +4,13 @@ import * as Yup from 'yup';
 import { FaEnvelope, FaLock } from 'react-icons/fa';
 import { loginUser } from '../../api/api';
 import { toast } from 'react-toastify';
-// 
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  
   const formik = useFormik({
     initialValues: {
       email: '',
@@ -30,8 +34,12 @@ const Login = () => {
             duration: 8000,
             position: 'top-center',
           });
+          
+          // Update auth context
+          login(data.token);
+          
           await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate a delay
-          window.location.href = '/dashboard'; // Redirect to dashboard on success
+          navigate('/dashboard'); // Redirect to dashboard on success
         }
         
      } catch (error) {

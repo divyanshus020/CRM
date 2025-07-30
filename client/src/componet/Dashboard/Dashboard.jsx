@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, Edit3, Trash2, Plus, RefreshCw, TrendingUp, FileText, DollarSign, UserPlus } from 'lucide-react';
-import { deleteChallan, getAllChallans } from '../../api/api';
+import { Eye, Edit3, Trash2, Plus, RefreshCw, TrendingUp, FileText, DollarSign, UserPlus, User } from 'lucide-react';
+import { deleteChallan, getAllChallans, getAllCustomers } from '../../api/api';
 import { toast } from 'react-toastify';
 
 const Dashboard = () => {
   const [challans, setChallans] = useState([]);
+  const [custmoers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -151,6 +152,9 @@ const Dashboard = () => {
       
       // In real implementation, replace this with your API call:
        const data = await getAllChallans();
+       const cust = await getAllCustomers();
+      setCustomers(cust.data || []);
+      console.log("hiiiiiiii",custmoers)
       if(data && data.length > 0) {
         setChallans(data);
       } else {
@@ -310,17 +314,12 @@ const Dashboard = () => {
             color="from-blue-500 to-blue-600"
           />
           <StatCard
-            title="Total Value"
-            value={formatCurrency(totalValue)}
-            icon={DollarSign}
+            title="Total Customers"
+            value={custmoers.length}
+            icon={User}
             color="from-green-500 to-green-600"
           />
-          <StatCard
-            title="Average Value"
-            value={formatCurrency(totalValue / challans.length || 0)}
-            icon={TrendingUp}
-            color="from-purple-500 to-purple-600"
-          />
+          
         </div>
 
         {/* Challans Section */}

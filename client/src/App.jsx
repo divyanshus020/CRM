@@ -10,6 +10,9 @@ import CustomerRegistrationForm from "./componet/Dashboard/CoustmerRegistaion.js
 import Layout from "./componet/Layout/Layout.jsx";
 import AllCustomers from "./componet/Dashboard/AllCoustmers.jsx";
 import AllChallans from "./componet/Dashboard/AllChallans.jsx";
+import { AuthProvider } from "./context/AuthContext.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import AuthRedirect from "./components/AuthRedirect.jsx";
 
 const appRouter = createBrowserRouter([
   {
@@ -18,40 +21,44 @@ const appRouter = createBrowserRouter([
   },
   {
     path: "/login",
-    element: <Login />,
+    element: <AuthRedirect><Login /></AuthRedirect>,
   },
   {
     path: "/register",
-    element: <UserRegister />,
+    element: <AuthRedirect><UserRegister /></AuthRedirect>,
   },
   {
     path: "/dashboard",
-    element: <Layout><Dashboard /></Layout>
+    element: <ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>
   },
   {
     path: "/view/:challanId",
-    element: <Layout><ViewChallan /></Layout>
+    element: <ProtectedRoute><Layout><ViewChallan /></Layout></ProtectedRoute>
   },
   {
     path: "/new-challan",
-    element: <Layout><NewChallan /></Layout>
+    element: <ProtectedRoute><Layout><NewChallan /></Layout></ProtectedRoute>
   },
   {
     path: "/new-customer",
-    element: <Layout><CustomerRegistrationForm /></Layout>
+    element: <ProtectedRoute><Layout><CustomerRegistrationForm /></Layout></ProtectedRoute>
   },
   {
     path: "/all-customers",
-    element: <Layout><AllCustomers /></Layout>
+    element: <ProtectedRoute><Layout><AllCustomers /></Layout></ProtectedRoute>
   },
   {
     path: "/all-challan",
-    element: <Layout><AllChallans /></Layout>
+    element: <ProtectedRoute><Layout><AllChallans /></Layout></ProtectedRoute>
   }
 ]);
 
 function App() {
-  return <RouterProvider router={appRouter} />;
+  return (
+    <AuthProvider>
+      <RouterProvider router={appRouter} />
+    </AuthProvider>
+  );
 }
 
 export default App;

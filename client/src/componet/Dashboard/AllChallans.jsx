@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { deleteChallan, getAllChallans } from '../../api/api';
 import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  
   // State for storing challans data
   const [challans, setChallans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,6 +19,11 @@ const Dashboard = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [challanToDelete, setChallanToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Search and sort state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('date'); // 'date', 'name', 'challanNo', 'amount'
+  const [sortOrder, setSortOrder] = useState('desc'); // 'asc' or 'desc'
 
   // Mock challans data (15 records for pagination demo)
   const mockChallans = [
@@ -146,6 +154,11 @@ const Dashboard = () => {
     loadChallans();
   }, []);
 
+  // Reset to first page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortBy, sortOrder]);
+
   // Function to load challans (using mock data)
   const loadChallans = async () => {
     try {
@@ -170,6 +183,106 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Function to filter challans based on search term
+  const getFilteredChallans = () => {
+    if (!searchTerm.trim()) {
+      return challans;
+    }
+
+    return challans.filter(challan => {
+      const customerName = (challan.customer?.name || challan.customerName || '').toLowerCase();
+      const challanNumber = (challan.challanNo || challan.challanNumber || '').toLowerCase();
+      const searchLower = searchTerm.toLowerCase();
+
+      // Date search functionality
+      const challanDate = new Date(challan.date);
+      const dateString = challanDate.toLocaleDateString('en-IN'); // DD/MM/YYYY format
+      const dateStringUS = challanDate.toLocaleDateString('en-US'); // MM/DD/YYYY format
+      const dateStringISO = challan.date; // YYYY-MM-DD format
+      const dateStringReverse = challan.date.split('-').reverse().join('/'); // DD/MM/YYYY from ISO
+      
+      // Check different date formats
+      const dateMatches = dateString.includes(searchLower) || 
+                         dateStringUS.includes(searchLower) ||
+                         dateStringISO.includes(searchLower) ||
+                         dateStringReverse.includes(searchLower) ||
+                         // Partial date matches (e.g., searching "2025" or "01" or "15")
+                         challan.date.includes(searchTerm) ||
+                         // Day/Month/Year individual searches
+                         challanDate.getDate().toString().includes(searchTerm) ||
+                         (challanDate.getMonth() + 1).toString().padStart(2, '0').includes(searchTerm) ||
+                         challanDate.getFullYear().toString().includes(searchTerm);
+
+      return customerName.includes(searchLower) || 
+             challanNumber.includes(searchLower) || 
+             dateMatches;
+    });
+  };
+
+  // Function to sort challans
+  const getSortedChallans = (filteredChallans) => {
+    const sorted = [...filteredChallans].sort((a, b) => {
+      let aValue, bValue;
+
+      switch (sortBy) {
+        case 'name':
+          aValue = (a.customer?.name || a.customerName || '').toLowerCase();
+          bValue = (b.customer?.name || b.customerName || '').toLowerCase();
+          break;
+        case 'date':
+          aValue = new Date(a.date);
+          bValue = new Date(b.date);
+          break;
+        case 'challanNo':
+          aValue = (a.challanNo || a.challanNumber || '').toLowerCase();
+          bValue = (b.challanNo || b.challanNumber || '').toLowerCase();
+          break;
+        case 'amount':
+          aValue = a.totalAmount || a.grandTotal || 0;
+          bValue = b.totalAmount || b.grandTotal || 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (sortOrder === 'asc') {
+        if (aValue < bValue) return -1;
+        if (aValue > bValue) return 1;
+        return 0;
+      } else {
+        if (aValue > bValue) return -1;
+        if (aValue < bValue) return 1;
+        return 0;
+      }
+    });
+
+    return sorted;
+  };
+
+  // Get processed data for display
+  const getProcessedChallans = () => {
+    const filtered = getFilteredChallans();
+    const sorted = getSortedChallans(filtered);
+    return sorted;
+  };
+
+  // Handle sort change
+  const handleSortChange = (newSortBy) => {
+    if (sortBy === newSortBy) {
+      // Toggle sort order if same column
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new sort column with default desc order
+      setSortBy(newSortBy);
+      setSortOrder('desc');
+    }
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchTerm('');
   };
 
   // Function to format date nicely
@@ -218,7 +331,8 @@ const Dashboard = () => {
       setChallans(updatedChallans);
       
       // Adjust current page if needed
-      const newTotalPages = Math.ceil(updatedChallans.length / itemsPerPage);
+      const processedChallans = getProcessedChallans().filter(challan => challan._id !== challanToDelete._id);
+      const newTotalPages = Math.ceil(processedChallans.length / itemsPerPage);
       if (currentPage > newTotalPages && newTotalPages > 0) {
         setCurrentPage(newTotalPages);
       }
@@ -239,14 +353,14 @@ const Dashboard = () => {
     }
   };
 
-  // Calculate pagination values
-  const totalPages = Math.ceil(challans.length / itemsPerPage);
+  // Get processed challans for pagination
+  const processedChallans = getProcessedChallans();
+  const totalPages = Math.ceil(processedChallans.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentChallans = challans.slice(startIndex, startIndex + itemsPerPage);
+  const currentChallans = processedChallans.slice(startIndex, startIndex + itemsPerPage);
 
   // Calculate totals for summary
-  const totalValue = challans.reduce((sum, challan) => sum + challan.totalAmount, 0);
-  const averageValue = challans.length > 0 ? totalValue / challans.length : 0;
+  const totalValue = challans.reduce((sum, challan) => sum + (challan.totalAmount || challan.grandTotal || 0), 0);
 
   // Pagination functions
   const goToPage = (page) => setCurrentPage(page);
@@ -289,17 +403,101 @@ const Dashboard = () => {
             <p className="text-3xl font-bold text-green-600">{formatMoney(totalValue)}</p>
           </div>
           
-          {/* Average Value Card */}
+          {/* Filtered Results Card */}
           <div className="bg-white p-6 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Average Value</h3>
-            <p className="text-3xl font-bold text-purple-600">{formatMoney(averageValue)}</p>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Challans</h3>
+            <p className="text-3xl font-bold text-purple-600">{processedChallans.length}</p>
           </div>
+        </div>
+
+        {/* Search and Sort Controls */}
+        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+            
+            {/* Search Bar */}
+            <div className="flex-1 max-w-md">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search by customer name, challan number, or date..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <svg className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                {searchTerm && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 hover:text-gray-600"
+                  >
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Sort Controls */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="date">Sort by Date</option>
+                <option value="name">Sort by Customer Name</option>
+                <option value="challanNo">Sort by Challan No.</option>
+                <option value="amount">Sort by Amount</option>
+              </select>
+              
+              <button
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg flex items-center gap-2"
+              >
+                {sortOrder === 'asc' ? (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                    </svg>
+                    Ascending
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
+                    </svg>
+                    Descending
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Search Results Info */}
+          {searchTerm && (
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-blue-800 text-sm">
+                Found <strong>{processedChallans.length}</strong> result(s) for "<strong>{searchTerm}</strong>"
+                {processedChallans.length === 0 && (
+                  <span> - Try different keywords, dates (DD/MM/YYYY, YYYY-MM-DD), or check spelling</span>
+                )}
+              </p>
+              {searchTerm && processedChallans.length > 0 && (
+                <div className="mt-2 text-xs text-blue-600">
+                  💡 <strong>Date search tips:</strong> Try "2025", "01/15", "15/01/2025", "2025-01-15", or just "15" for day
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
         <div className="mb-6 flex flex-col sm:flex-row gap-4">
           <button 
-            onClick={() => alert('Add New Challan - Connect to your form')}
+            onClick={() => navigate('/new-challan')}
             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg"
           >
             + Add New Challan
@@ -319,158 +517,219 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Challans Table */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-800">All Challans</h2>
-            <p className="text-gray-600 text-sm">
-              Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, challans.length)} of {challans.length} challans
+        {/* No Results Message */}
+        {processedChallans.length === 0 && !loading && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
+            <svg className="mx-auto h-12 w-12 text-yellow-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.007-5.824-2.562M15 6.5a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <h3 className="text-lg font-medium text-yellow-800 mb-2">No challans found</h3>
+            <p className="text-yellow-700">
+              {searchTerm 
+                ? `No challans match your search "${searchTerm}". Try different keywords, dates, or check spelling.`
+                : 'No challans available. Add your first challan to get started.'
+              }
             </p>
+            {searchTerm && (
+              <button
+                onClick={clearSearch}
+                className="mt-4 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"
+              >
+                Clear Search
+              </button>
+            )}
           </div>
+        )}
 
-          {/* Mobile Cards View */}
-          <div className="block md:hidden">
-            {currentChallans.map((challan) => (
-              <div key={challan._id} className="border-b border-gray-200 p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-bold">
-                    {challan.challanNo || challan.challanNumber}
-                  </span>
-                  <span className="text-green-600 font-bold">
-                    {formatMoney(challan.totalAmount || challan.grandTotal)}
-                  </span>
-                </div>
-                <div className="mb-2">
-                  <p className="font-semibold text-gray-800">{challan.customer.name || challan.customerName}</p>
-                  <p className="text-gray-600 text-sm">{formatDate(challan.date)}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button 
-                     onClick={() => window.location.href = `/view/${challan._id}`}
-                    className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
-                  >
-                    View
-                  </button>
-                  {/* <button 
-                    onClick={() => alert(`Edit Challan ${challan.challanNumber}`)}
-                    className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600"
-                  >
-                    Edit
-                  </button> */}
-                  <button 
-                    onClick={() => openDeleteModal(challan)}
-                    className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Desktop Table View */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Challan No.
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Customer Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Grand Total
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {currentChallans.map((challan) => (
-                  <tr key={challan._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-bold">
-                        {challan.challanNo || challan.challanNumber}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                      {challan.customer?.name || challan.customerName || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {formatDate(challan.date)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
-                      {formatMoney(challan.totalAmount || challan.grandTotal)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => window.location.href = `/view/${challan._id}`}
-                          className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-                        >
-                          View
-                        </button>
-                        <button 
-                          onClick={() => openDeleteModal(challan)}
-                          className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-700">
-                  Page {currentPage} of {totalPages}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={goToPrevious}
-                    disabled={currentPage === 1}
-                    className="px-3 py-2 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => goToPage(page)}
-                      className={`px-3 py-2 text-sm rounded ${
-                        currentPage === page
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-white border border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                  
-                  <button
-                    onClick={goToNext}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-2 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
+        {/* Challans Table */}
+        {processedChallans.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-800">All Challans</h2>
+              <p className="text-gray-600 text-sm">
+                Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, processedChallans.length)} of {processedChallans.length} challans
+                {searchTerm && ` (filtered from ${challans.length} total)`}
+              </p>
             </div>
-          )}
-        </div>
+
+            {/* Mobile Cards View */}
+            <div className="block md:hidden">
+              {currentChallans.map((challan) => (
+                <div key={challan._id} className="border-b border-gray-200 p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-bold">
+                      {challan.challanNo || challan.challanNumber}
+                    </span>
+                    <span className="text-green-600 font-bold">
+                      {formatMoney(challan.totalAmount || challan.grandTotal)}
+                    </span>
+                  </div>
+                  <div className="mb-2">
+                    <p className="font-semibold text-gray-800">{challan.customer?.name || challan.customerName}</p>
+                    <p className="text-gray-600 text-sm">{formatDate(challan.date)}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                       onClick={() => navigate(`/view/${challan._id}`)}
+                      className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
+                    >
+                      View
+                    </button>
+                    <button 
+                      onClick={() => openDeleteModal(challan)}
+                      className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <button 
+                        onClick={() => handleSortChange('challanNo')}
+                        className="flex items-center gap-1 hover:text-gray-700"
+                      >
+                        Challan No.
+                        {sortBy === 'challanNo' && (
+                          <svg className={`w-4 h-4 transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                          </svg>
+                        )}
+                      </button>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <button 
+                        onClick={() => handleSortChange('name')}
+                        className="flex items-center gap-1 hover:text-gray-700"
+                      >
+                        Customer Name
+                        {sortBy === 'name' && (
+                          <svg className={`w-4 h-4 transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                          </svg>
+                        )}
+                      </button>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <button 
+                        onClick={() => handleSortChange('date')}
+                        className="flex items-center gap-1 hover:text-gray-700"
+                      >
+                        Date
+                        {sortBy === 'date' && (
+                          <svg className={`w-4 h-4 transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                          </svg>
+                        )}
+                      </button>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <button 
+                        onClick={() => handleSortChange('amount')}
+                        className="flex items-center gap-1 hover:text-gray-700"
+                      >
+                        Grand Total
+                        {sortBy === 'amount' && (
+                          <svg className={`w-4 h-4 transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                          </svg>
+                        )}
+                      </button>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {currentChallans.map((challan) => (
+                    <tr key={challan._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-bold">
+                          {challan.challanNo || challan.challanNumber}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {challan.customer?.name || challan.customerName || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {formatDate(challan.date)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
+                        {formatMoney(challan.totalAmount || challan.grandTotal)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => navigate(`/view/${challan._id}`)}
+                            className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                          >
+                            View
+                          </button>
+                          <button 
+                            onClick={() => openDeleteModal(challan)}
+                            className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-700">
+                    Page {currentPage} of {totalPages}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={goToPrevious}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => goToPage(page)}
+                        className={`px-3 py-2 text-sm rounded ${
+                          currentPage === page
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-white border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    
+                    <button
+                      onClick={goToNext}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-2 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}
