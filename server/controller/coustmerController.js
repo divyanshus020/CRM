@@ -1,7 +1,4 @@
-import { Customer } from "../model/customerModel.js";
-
-
-
+import { supabase } from "../config/supabaseClient.js";
 
 export const createCustomer = async (req, res) => {
   try {
@@ -36,16 +33,23 @@ export const createCustomer = async (req, res) => {
       return res.status(400).json({ message: "Invalid GSTIN" });
 
     // Check duplicate customer
-    const existing = await Customer.findOne({ userName, firmName, firmAddress, email });
-    if (existing)
-      return res.status(409).json({ message: "Customer already exists" });
+    const { data: existing, error: checkError } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('email', email)
+      .eq('userName', userName)
+      .eq('firmName', firmName)
+      .single();
 
-    // 🔥 Unique ID Generation (get max existing CUSTxxx)
-    const latestCustomer = await Customer.findOne({ id: /^CUST\d+$/ })
-      .sort({ createdAt: -1 })
-      .lean();
+    if (existing) return res.status(409).json({ message: "Customer already exists" });
 
-      console.log('Latest Customer:', latestCustomer);
+    // Get latest customer ID
+    const { data: latestCustomer, error: latestError } = await supabase
+      .from('customers')
+      .select('id')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
 
 
     let newNumber = 1;
@@ -55,24 +59,29 @@ export const createCustomer = async (req, res) => {
     }
     const id = `CUST${newNumber.toString().padStart(3, "0")}`;
 
-    // Save new customer
-    const customer = new Customer({
-      id,
-      userName,
-      firmName,
-      firmAddress,
-      phone,
-      alternativePhone,
-      email,
-      gst,
-      description,
-    });
+    // Save new customer using Supabase
+    const { data: newCustomer, error: insertError } = await supabase
+      .from('customers')
+      .insert([{
+        id,
+        userName,
+        firmName,
+        firmAddress,
+        phone,
+        alternativePhone,
+        email,
+        gst,
+        description,
+        createdBy: req.id
+      }])
+      .select()
+      .single();
 
-    const savedCustomer = await customer.save();
+    if (insertError) throw insertError;
 
     return res.status(201).json({
       message: "Customer created successfully",
-      data: savedCustomer,
+      data: newCustomer,
       success: true,
     });
 
@@ -89,106 +98,101 @@ export const createCustomer = async (req, res) => {
 
 export const editCustomer = async (req, res) => {
   try {
+    const { id } = req.params;
+    const updates = req.body;
 
-    // console.log(req.body)
-
-    const customerId = req.params.id;
-    
-    console.log('Customer ID:', customerId);
-    const {
-      userName,
-      firmName,
-      firmAddress,
-      phone,
-      alternativePhone,
-      email,
-      gst,
-      description,
-    } = req.body;
     if (!req.id) return res.status(401).json({ message: "Please login" });
-    // Validate required fields
-    if (!userName || !firmName || !firmAddress || !phone || !alternativePhone || !email || !gst || !description) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-    
-    // Validate phone numbers
-    const phoneRegex = /^[0-9+\- ]{10,15}$/;
 
-    if (!phoneRegex.test(phone) || !phoneRegex.test(alternativePhone)) {
-      return res.status(400).json({ message: "Invalid phone or alternative phone number" });
+    // Basic validations
+    if (updates.phone) {
+      const phoneRegex = /^[0-9+\- ]{10,15}$/;
+      if (!phoneRegex.test(updates.phone)) {
+        return res.status(400).json({ message: "Invalid phone number" });
+      }
     }
 
-    // Validate email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ message: "Invalid email address" });
+    if (updates.email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(updates.email)) {
+        return res.status(400).json({ message: "Invalid email address" });
+      }
     }
 
-
-    // Validate GST
-    const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
-    if (!gstRegex.test(gst)) {
-      return res.status(400).json({ message: "Invalid GSTIN" });
+    if (updates.gst) {
+      const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+      if (!gstRegex.test(updates.gst)) {
+        return res.status(400).json({ message: "Invalid GSTIN" });
+      }
     }
-    // Check if customer exists
-    const customer = await Customer.findById(customerId);
-    if (!customer) {
+
+    // Update customer
+    const { data: updatedCustomer, error: updateError } = await supabase
+      .from('customers')
+      .update(updates)
+      .eq('id', id)
+      .single();
+
+    if (updateError) throw updateError;
+    if (!updatedCustomer) {
       return res.status(404).json({ message: "Customer not found" });
     }
-    // Update customer details
-    customer.userName = userName;
-    customer.firmName = firmName;
-    customer.firmAddress = firmAddress;
-    customer.phone = phone;
-    customer.alternativePhone = alternativePhone;
-    customer.email = email;
-    customer.gst = gst;
-    customer.description = description;
-    
-    const updatedCustomer = await customer.save();
-    return res.status(200).json({
-      message: "Customer updated successfully",
-      data: updatedCustomer,
-      success: true,
-    });
-  }
-  catch (error) {
-    return res.status(500).json({ message: "Failed to update customer", error: error.message, success: false });
-  }
-}
 
-
-export const getAllCustomers = async (req, res) => {
-  try {
-
-    if (!req.id) return res.status(401).json({ message: "Please login" });
-    const Customers = await Customer.find({}).sort({ createdAt: -1 });
-    
-    return res.status(200).json({
-      message: "Customers fetched successfully",
-      data: Customers,
-      success: true
-    });
+    res.json({ message: "Customer updated successfully", customer: updatedCustomer });
   } catch (error) {
-    return res.status(500).json({ message: "Failed to fetch Customers", error: error.message });
+    console.error("Edit customer error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-export const deleteCusomer = async (req, res) => {
+export const getAllCustomers = async (req, res) => {
   try {
-    const customerId = req.params.id;
     if (!req.id) return res.status(401).json({ message: "Please login" });
 
-    const customer = await Customer.findById(customerId);
-    if (!customer) {
-      return res.status(404).json({ message: "Customer not found" });
-    } 
-    await Customer.findByIdAndDelete(customerId);
-    return res.status(200).json({ message: "Customer deleted successfully", success: true });
+    const { data: customers, error } = await supabase
+      .from('customers')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    
+    return res.status(200).json({ 
+      message: "Customers fetched successfully", 
+      data: customers, 
+      success: true 
+    });
+  } catch (error) {
+    return res.status(500).json({ 
+      message: "Failed to fetch customers", 
+      error: error.message,
+      success: false 
+    });
   }
-  catch (error) {
-    return res.status(500).json({ message: "Failed to delete customer", error: error.message });
+};
+
+export const deleteCustomer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!req.id) return res.status(401).json({ message: "Please login" });
+
+    const { error } = await supabase
+      .from('customers')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    return res.status(200).json({ 
+      message: "Customer deleted successfully", 
+      success: true 
+    });
+  } catch (error) {
+    return res.status(500).json({ 
+      message: "Failed to delete customer", 
+      error: error.message,
+      success: false 
+    });
   }
-}
+};
 
 
