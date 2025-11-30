@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import connectDB from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
 import customerRoutes from './routes/customerRoutes.js'; // default import — was incorrectly importing { router as customerRoutes }
+import challanRoutes from './routes/challanRoutes.js';
 import { errorHandler } from './middleware/error.js';
 
 // Load environment variables
@@ -33,13 +34,16 @@ app.use(cookieParser());
 
 // Enable CORS
 app.use(cors({
-  origin: 'http://localhost:5173',
-  credentials: true
+  origin: 'http://localhost:5173', // Specify the frontend origin
+  credentials: true, // Allow cookies and authorization headers
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // API Routes
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/coustmer', customerRoutes); // Note: Using 'coustmer' to match frontend
+app.use('/api/v1/customers', customerRoutes); // Using standard RESTful naming
+app.use('/api/v1/challan', challanRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

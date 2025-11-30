@@ -1,0 +1,63 @@
+import React from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { Home, Users, FileText } from 'lucide-react';
+
+const BottomNavbar = () => {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const navItems = [
+    {
+      icon: Home,
+      label: 'Home',
+      path: '/dashboard',
+      id: 'home'
+    },
+    {
+      icon: Users,
+      label: 'Customers',
+      path: '/all-customers',
+      id: 'customers'
+    },
+    {
+      icon: FileText,
+      label: 'Challans',
+      path: '/all-challan',
+      id: 'challans'
+    }
+  ];
+
+  const isActive = (path) => pathname === path;
+
+  return (
+    <div className="print:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg h-[80px] z-50">
+      <div className="flex justify-around items-center py-3 px-4 h-full">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const active = isActive(item.path);
+
+          return (
+            <button
+              key={item.id}
+              onClick={() => router.push(item.path)}
+              className={`flex flex-col items-center justify-center p-2 rounded-lg min-w-0 flex-1 transition-colors duration-200 ${active
+                ? 'text-blue-600 bg-blue-50'
+                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                }`}
+            >
+              <Icon
+                size={28}
+                className={`mb-2 ${active ? 'text-blue-600' : 'text-gray-600'}`}
+              />
+              <span className={`text-sm font-semibold ${active ? 'text-blue-600' : 'text-gray-600'}`}>
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+export default BottomNavbar;

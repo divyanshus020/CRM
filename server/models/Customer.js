@@ -4,43 +4,51 @@ const customerSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, 'Please add a name'],
       trim: true,
+      default: 'New Customer'
+    },
+    firmName: {
+      type: String,
+      trim: true,
+      default: ''
     },
     email: {
       type: String,
-      required: [true, 'Please add an email'],
-      unique: true,
-      match: [
-        /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-        'Please add a valid email',
-      ],
+      trim: true,
+      lowercase: true,
+      default: ''
     },
     phone: {
       type: String,
-      required: [true, 'Please add a phone number'],
+      default: ''
     },
     address: {
       type: String,
-      required: [true, 'Please add an address'],
+      default: ''
     },
     gstNumber: {
       type: String,
-      required: [true, 'Please add a GST number'],
+      default: ''
     },
     createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
+      type: String,
+      default: '000000000000' // Default user ID for testing
     },
   },
   {
     timestamps: true,
+    minimize: false // Ensure empty objects are returned
   }
 );
 
-// Create a compound index for createdBy and email to ensure uniqueness per user
-customerSchema.index({ createdBy: 1, email: 1 }, { unique: true });
+// This line will drop the unique index on the 'email' field. 
+// It can be removed after the application has started once with this code.
+customerSchema.pre('save', function (next) {
+  this.constructor.collection.dropIndex('email_1', function(err, result) {
+    // Ignore errors if the index doesn't exist
+    next();
+  });
+});
 
 const Customer = mongoose.model('Customer', customerSchema);
 

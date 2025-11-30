@@ -2,39 +2,39 @@
 import mongoose from "mongoose";
 
 const itemSchema = new mongoose.Schema({
-  particulars: { type: String, required: true },
-  hsnCode: { type: String,  },
-  quantity: { type: Number, required: true },
-  rate: { type: Number, required: true },
-  amount: { type: Number, required: true }
+  particulars: { type: String },
+  hsnCode: { type: String },
+  quantity: { type: Number },
+  rate: { type: Number },
+  amount: { type: Number }
 });
 
 const customerSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  address: { type: String, required: true },
+  name: { type: String },
+  address: { type: String },
   gstin: { type: String }
 });
 
 const challanSchema = new mongoose.Schema({
-  challanNo: { type: String, required: true },
-  date: { type: Date, required: true },
-  firmName: { type: String, required: true },
-  gstin: { type: String, required: true },
-  pan: { type: String, required: true },
-  contact: { type: String, required: true },
+  challanNo: { type: String },
+  date: { type: Date },
+  firmName: { type: String },
+  gstin: { type: String },
+  pan: { type: String },
+  contact: { type: String },
 
-  customer: { type: customerSchema, required: true },
+  customer: { type: customerSchema },
 
   poNumber: { type: String },
   poDate: { type: Date },
   vehicleNo: { type: String },
 
-  items: { type: [itemSchema], required: true },
-  totalAmount: { type: Number, required: true },
+  items: { type: [itemSchema] },
+  totalAmount: { type: Number },
 
   eoe: { type: Boolean, default: false }, // End of Entry
   receiverSign: { type: String, default: null },
-  issuedBy: { type: String, required: true }
+  issuedBy: { type: String }
 }, {
   timestamps: true // adds createdAt and updatedAt
 });

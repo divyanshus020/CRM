@@ -1,77 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { deleteCustomer, editCustomer, getAllCustomers } from '../../api/api.js';
+import { deleteCustomer, updateCustomer, getAllCustomers } from '../../api/api.js';
 import { toast } from 'sonner';
-import { Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, Edit2, Trash2, RefreshCw, X, Users, Mail, Phone, MapPin, FileText } from 'lucide-react';
 
-// Mock data as fallback
-const mockCustomers = [
-  {
-    _id: "1",
-    id: "CUST001",
-    userName: "John Doe",
-    firmName: "ABC Electronics",
-    firmAddress: "123 Main Street, New York, NY 10001",
-    phone: "+1-555-0101",
-    alternativePhone: "+1-555-0102",
-    email: "john.doe@abcelectronics.com",
-    gst: "22AAAAA0000A1Z5",
-    description: "Regular customer, high volume orders"
-  },
-  {
-    _id: "2",
-    id: "CUST002",
-    userName: "Jane Smith",
-    firmName: "Tech Solutions Inc",
-    firmAddress: "456 Oak Avenue, Los Angeles, CA 90210",
-    phone: "+1-555-0201",
-    alternativePhone: "+1-555-0202",
-    email: "jane.smith@techsolutions.com",
-    gst: "27BBBBB1111B2Z6",
-    description: "New customer, premium services"
-  },
-  {
-    _id: "3",
-    id: "CUST003",
-    userName: "Mike Johnson",
-    firmName: "Global Imports LLC",
-    firmAddress: "789 Pine Road, Chicago, IL 60601",
-    phone: "+1-555-0301",
-    alternativePhone: "+1-555-0302",
-    email: "mike.johnson@globalimports.com",
-    gst: "19CCCCC2222C3Z7",
-    description: "International trade customer"
-  },
-  {
-    _id: "4",
-    id: "CUST004",
-    userName: "Sarah Wilson",
-    firmName: "Creative Designs Studio",
-    firmAddress: "321 Elm Street, Miami, FL 33101",
-    phone: "+1-555-0401",
-    alternativePhone: "+1-555-0402",
-    email: "sarah.wilson@creativedesigns.com",
-    gst: "33DDDDD3333D4Z8",
-    description: "Design and marketing services"
-  },
-  {
-    _id: "5",
-    id: "CUST005",
-    userName: "David Brown",
-    firmName: "Manufacturing Co",
-    firmAddress: "654 Maple Drive, Houston, TX 77001",
-    phone: "+1-555-0501",
-    alternativePhone: "+1-555-0502",
-    email: "david.brown@manufacturingco.com",
-    gst: "06EEEEE4444E5Z9",
-    description: "Industrial manufacturing client"
-  }
-];
+// Customer data will be fetched from the API
 
 const AllCustomers = () => {
   // State management
   const [allCustomers, setAllCustomers] = useState([]);
-  const [usingMockData, setUsingMockData] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -79,7 +16,7 @@ const AllCustomers = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState(null);
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
-  
+
   // Search and Sort state
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -108,7 +45,7 @@ const AllCustomers = () => {
     return [...filteredCustomers].sort((a, b) => {
       const aValue = a[sortConfig.key] || '';
       const bValue = b[sortConfig.key] || '';
-      
+
       if (aValue < bValue) {
         return sortConfig.direction === 'asc' ? -1 : 1;
       }
@@ -134,7 +71,7 @@ const AllCustomers = () => {
     if (sortConfig.key !== columnKey) {
       return <ArrowUpDown className="w-4 h-4 text-gray-400" />;
     }
-    return sortConfig.direction === 'asc' 
+    return sortConfig.direction === 'asc'
       ? <ArrowUp className="w-4 h-4 text-blue-600" />
       : <ArrowDown className="w-4 h-4 text-blue-600" />;
   };
@@ -144,35 +81,28 @@ const AllCustomers = () => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  // Fetch customers from API with fallback to mock data
+  // Fetch customers from API
   const fetchCustomers = async () => {
     try {
       setLoading(true);
       setError(null);
-      setUsingMockData(false);
-      
+
       const response = await getAllCustomers();
 
-      console.log('API Response:', response?.data);
-      const customers = response?.data|| [];
+      // Map API response to match component's expected structure
+      const mappedCustomers = response.data.map(customer => ({
+        ...customer,
+        userName: customer.name || customer.userName,
+        firmAddress: customer.address || customer.firmAddress,
+        gst: customer.gstNumber || customer.gst,
+        id: customer._id // Map _id to id if needed
+      }));
 
-      console.log('Parsed Customers:', customers);
-      
-      if (customers.length > 0) {
-        setAllCustomers(customers);
-        console.log('✅ Loaded real data from API');
-        console.log(customers)
-      } else {
-        // Fallback to mock data if API returns empty
-        setAllCustomers(mockCustomers);
-        setUsingMockData(true);
-        console.log('⚠️ API returned empty data, using mock data');
-      }
-    } catch (error) {
-      console.error('❌ API Error, falling back to mock data:', error);
-      setAllCustomers(mockCustomers);
-      setUsingMockData(true);
-      setError(null); // Clear error since we have fallback data
+      setAllCustomers(mappedCustomers);
+    } catch (err) {
+      console.error('Error fetching customers:', err);
+      setError('Failed to load customers. Please try again.');
+      setAllCustomers([]);
     } finally {
       setLoading(false);
     }
@@ -188,7 +118,7 @@ const AllCustomers = () => {
     const checkScreenSize = () => {
       setIsMobileView(window.innerWidth < 768);
     };
-    
+
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
@@ -213,33 +143,45 @@ const AllCustomers = () => {
   const handleSaveEdit = async () => {
     try {
       if (!editingCustomer) return;
-      
-      // Here you would typically call the API to update the customer
-     const response = await editCustomer(editingCustomer._id, editingCustomer);
 
-     if(response && response.success) {
+      // Prepare the data to send to the API (matches backend Customer.js model)
+      const customerData = {
+        name: editingCustomer.userName || editingCustomer.name,
+        firmName: editingCustomer.firmName || '',
+        email: editingCustomer.email || '',
+        phone: editingCustomer.phone || '',
+        address: editingCustomer.firmAddress || editingCustomer.address || ''
+      };
 
-      toast.success("Customer updated successfully!",{
-        position: "top-center"
-      });
+      // Only include gstNumber if it has a value
+      if (editingCustomer.gst || editingCustomer.gstNumber) {
+        customerData.gstNumber = editingCustomer.gst || editingCustomer.gstNumber;
+      }
 
-    }
-      
-     
-      const updatedCustomers = allCustomers.map(customer => 
-        customer._id === editingCustomer._id ? editingCustomer : customer
+      const response = await updateCustomer(editingCustomer._id, customerData);
+
+      if (response && response.success) {
+        toast.success("Customer updated successfully!", {
+          position: "top-center"
+        });
+      }
+
+      // Update local state with the edited customer
+      const updatedCustomers = allCustomers.map(customer =>
+        customer._id === editingCustomer._id
+          ? { ...editingCustomer, ...customerData }
+          : customer
       );
+
       setAllCustomers(updatedCustomers);
-      
+
       // Close modal and reset state
       setIsEditModalOpen(false);
       setEditingCustomer(null);
-      
-      // Refresh data from server
+
+      // Refresh data from server to ensure consistency
       fetchCustomers();
-      
-     
-     
+
     } catch (error) {
       console.error("Failed to update customer:", error);
       toast.error("Failed to update customer. Please try again.", {
@@ -263,25 +205,25 @@ const AllCustomers = () => {
 
       const response = await deleteCustomer(customerToDelete._id)
 
-      if(response.success){
+      if (response.success) {
         toast.success("Customer deleted successfully!", {
           position: "top-center"
         });
       }
 
-      const updatedCustomers = allCustomers.filter(customer => 
+      const updatedCustomers = allCustomers.filter(customer =>
         customer._id !== customerToDelete._id
       );
       setAllCustomers(updatedCustomers);
       setIsDeleteModalOpen(false);
       setCustomerToDelete(null);
-      
+
       // Adjust current page if necessary
       const newTotalPages = Math.ceil(updatedCustomers.length / customersPerPage);
       if (currentPage > newTotalPages && newTotalPages > 0) {
         setCurrentPage(newTotalPages);
       }
-      
+
       //alert("Customer deleted successfully!");
     } catch (error) {
       console.error("Failed to delete customer:", error);
@@ -298,61 +240,81 @@ const AllCustomers = () => {
     setEditingCustomer(prev => ({ ...prev, [field]: value }));
   };
 
-  // Mobile Card Component
-  const CustomerCard = ({ customer, isFirst }) => (
-    <div className={`p-4 rounded-lg shadow-md border space-y-3 ${
-      isFirst 
-        ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200' 
-        : 'bg-white border-gray-200'
-    }`}>
-      <div className="flex justify-between items-start">
-        <div>
-          <h3 className="font-semibold text-gray-900 text-lg">{customer.userName}</h3>
-          <p className="text-sm text-gray-600">{customer.firmName}</p>
-          <p className="text-xs text-gray-500 font-mono">{customer.id}</p>
+  // Modern Customer Card Component
+  const CustomerCard = ({ customer }) => (
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all p-5 space-y-4">
+      {/* Header */}
+      <div className="flex justify-between items-start gap-4">
+        <div className="flex-1">
+          <h3 className="font-bold text-lg text-gray-900">{customer.userName}</h3>
+          <p className="text-sm text-gray-600 mt-1">{customer.firmName}</p>
+          <p className="text-xs text-gray-500 font-mono mt-2 bg-gray-100 px-2 py-1 rounded w-fit">{customer.id}</p>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex gap-2">
           <button
             onClick={() => handleEdit(customer)}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs transition-colors"
+            className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+            title="Edit customer"
           >
-            Edit
+            <Edit2 className="w-4 h-4" />
           </button>
           <button
             onClick={() => handleDelete(customer)}
-            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs transition-colors"
+            className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
+            title="Delete customer"
           >
-            Delete
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </div>
-      
-      <div className="space-y-2 text-sm">
-        <div>
-          <span className="font-medium text-gray-700">Email: </span>
-          <a href={`mailto:${customer.email}`} className="text-blue-600 hover:text-blue-800 break-all">
-            {customer.email}
-          </a>
+
+      {/* Details Grid */}
+      <div className="space-y-3 border-t border-gray-100 pt-4">
+        <div className="flex items-start gap-3">
+          <Mail className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-gray-600 font-medium">Email</p>
+            <a href={`mailto:${customer.email}`} className="text-sm text-blue-600 hover:text-blue-800 break-all">
+              {customer.email}
+            </a>
+          </div>
         </div>
-        <div>
-          <span className="font-medium text-gray-700">Phone: </span>
-          <span className="text-gray-900">{customer.phone}</span>
-          {customer.alternativePhone && (
-            <span className="text-gray-500 text-xs ml-2">Alt: {customer.alternativePhone}</span>
-          )}
+
+        <div className="flex items-start gap-3">
+          <Phone className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-xs text-gray-600 font-medium">Phone</p>
+            <p className="text-sm text-gray-900">{customer.phone}</p>
+            {customer.alternativePhone && (
+              <p className="text-xs text-gray-500 mt-1">Alt: {customer.alternativePhone}</p>
+            )}
+          </div>
         </div>
-        <div>
-          <span className="font-medium text-gray-700">GST: </span>
-          <span className="text-gray-900 font-mono text-xs">{customer.gst}</span>
-        </div>
-        <div>
-          <span className="font-medium text-gray-700">Address: </span>
-          <span className="text-gray-900">{customer.firmAddress}</span>
-        </div>
+
+        {customer.gst && (
+          <div className="flex items-start gap-3">
+            <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-xs text-gray-600 font-medium">GST Number</p>
+              <p className="text-sm font-mono text-gray-900">{customer.gst}</p>
+            </div>
+          </div>
+        )}
+
+        {customer.firmAddress && (
+          <div className="flex items-start gap-3">
+            <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-xs text-gray-600 font-medium">Address</p>
+              <p className="text-sm text-gray-900">{customer.firmAddress}</p>
+            </div>
+          </div>
+        )}
+
         {customer.description && (
-          <div>
-            <span className="font-medium text-gray-700">Description: </span>
-            <span className="text-gray-600">{customer.description}</span>
+          <div className="bg-gray-50 rounded p-3 mt-3">
+            <p className="text-xs text-gray-600 font-medium mb-1">Notes</p>
+            <p className="text-sm text-gray-700">{customer.description}</p>
           </div>
         )}
       </div>
@@ -360,117 +322,115 @@ const AllCustomers = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-6 sm:py-8">
-        {/* Page Header */}
-        <div className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">All Customers</h1>
-              <p className="text-sm sm:text-base text-gray-600">
-                Total: {allCustomers.length} | 
-                Filtered: {sortedCustomers.length} | 
-                Showing {currentCustomers.length > 0 ? startIndex + 1 : 0}-{Math.min(endIndex, sortedCustomers.length)} of {sortedCustomers.length}
-                {usingMockData && (
-                  <span className="ml-2 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
-                    Demo Data
-                  </span>
-                )}
-              </p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50">
+      <div className="container mx-auto px-4 py-8">
+        {/* Modern Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg">
+              <Users className="w-6 h-6 text-white" />
             </div>
-
-            {/* Search and Actions */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-              {/* Search Bar */}
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search customers..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full sm:w-64 pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    <span className="text-gray-400 hover:text-gray-600 text-sm">✕</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Refresh Button */}
-              <button
-                onClick={fetchCustomers}
-                disabled={loading}
-                className="px-3 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {loading ? 'Loading...' : 'Refresh'}
-              </button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Customer Directory</h1>
+              <p className="text-sm text-gray-600 mt-1">Manage and organize your customer information</p>
             </div>
           </div>
 
-          {/* Search Results Info */}
+          {/* Stats Bar */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+              <p className="text-gray-600 text-xs font-medium uppercase tracking-wide">Total Customers</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{allCustomers.length}</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+              <p className="text-gray-600 text-xs font-medium uppercase tracking-wide">Filtered</p>
+              <p className="text-2xl font-bold text-blue-600 mt-1">{sortedCustomers.length}</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+              <p className="text-gray-600 text-xs font-medium uppercase tracking-wide">Current Page</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{currentPage}</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+              <p className="text-gray-600 text-xs font-medium uppercase tracking-wide">Total Pages</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{totalPages}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Search and Controls */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+            {/* Search Bar */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name, email, phone, GST, or address..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Refresh Button */}
+            <button
+              onClick={fetchCustomers}
+              disabled={loading}
+              className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-medium text-sm"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
+
+          {/* Search Info */}
           {searchTerm && (
-            <div className="mb-3 text-sm text-gray-600">
-              <span className="font-medium">Search results for:</span> "{searchTerm}" 
-              <span className="ml-2">({sortedCustomers.length} found)</span>
+            <div className="mt-3 text-sm text-gray-600 flex items-center gap-2">
+              <span className="font-medium">Results:</span> 
+              <span>{sortedCustomers.length} customer{sortedCustomers.length !== 1 ? 's' : ''} found</span>
               {sortConfig.key && (
-                <span className="ml-2 text-blue-600">
+                <span className="text-blue-600 font-medium">
                   • Sorted by {sortConfig.key} ({sortConfig.direction === 'asc' ? '↑' : '↓'})
                 </span>
               )}
-            </div>
-          )}
-          
-          {/* Mock Data Notice */}
-          {usingMockData && (
-            <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-              <span className="font-medium">ℹ️ Demo Mode:</span> Showing sample data because API is unavailable. 
-              <button 
-                onClick={fetchCustomers} 
-                className="ml-1 text-yellow-900 underline hover:no-underline"
-              >
-                Try reconnecting
-              </button>
             </div>
           )}
         </div>
 
         {/* Loading State */}
         {loading && (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600">Loading customers...</span>
+          <div className="flex flex-col items-center justify-center p-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600 mb-4"></div>
+            <span className="text-gray-600 font-medium">Loading customers...</span>
           </div>
         )}
 
         {/* Error State */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-            <div className="flex">
+        {!loading && error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+            <div className="flex gap-4">
               <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">Error Loading Customers</h3>
-                <div className="mt-2 text-sm text-red-700">
-                  <p>{error}</p>
-                </div>
-                <div className="mt-3">
-                  <button
-                    onClick={fetchCustomers}
-                    className="bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded text-sm transition-colors"
-                  >
-                    Try Again
-                  </button>
-                </div>
+              <div>
+                <h3 className="text-lg font-semibold text-red-900">Failed to Load Customers</h3>
+                <p className="text-red-700 mt-1">{error}</p>
+                <button
+                  onClick={fetchCustomers}
+                  className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+                >
+                  Try Again
+                </button>
               </div>
             </div>
           </div>
@@ -479,422 +439,395 @@ const AllCustomers = () => {
         {/* Customer Data Display */}
         {!loading && !error && (
           <>
-            {/* Mobile View - Cards */}
-            {isMobileView ? (
-              <div className="space-y-4">
-                {currentCustomers.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="text-gray-400 mb-4">
-                      <Search className="w-12 h-12 mx-auto mb-2" />
-                    </div>
-                    <div className="text-gray-500">
-                      {searchTerm ? (
-                        <>
-                          <p className="font-medium">No customers found for "{searchTerm}"</p>
-                          <p className="text-sm mt-1">Try adjusting your search terms</p>
-                          <button 
-                            onClick={() => setSearchTerm('')}
-                            className="mt-2 text-blue-600 hover:text-blue-800 text-sm underline"
-                          >
-                            Clear search
-                          </button>
-                        </>
-                      ) : (
-                        <p>No customers found</p>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  currentCustomers.map((customer, index) => (
-                    <CustomerCard 
-                      key={customer._id || customer.id} 
-                      customer={customer} 
-                      isFirst={index === 0}
-                    />
-                  ))
+            {/* Empty State */}
+            {currentCustomers.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {searchTerm ? `No customers found for "${searchTerm}"` : 'No customers found'}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {searchTerm ? 'Try adjusting your search terms' : 'Start by adding your first customer'}
+                </p>
+                {searchTerm && (
+                  <button 
+                    onClick={() => setSearchTerm('')}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+                  >
+                    Clear Search
+                  </button>
                 )}
               </div>
             ) : (
-              /* Desktop View - Table */
-              <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th 
-                      className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => handleSort('id')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Customer ID</span>
-                        {getSortIcon('id')}
-                      </div>
-                    </th>
-                    <th 
-                      className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => handleSort('userName')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>User Name</span>
-                        {getSortIcon('userName')}
-                      </div>
-                    </th>
-                    <th 
-                      className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => handleSort('firmName')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Firm Name</span>
-                        {getSortIcon('firmName')}
-                      </div>
-                    </th>
-                    <th 
-                      className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => handleSort('email')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Email</span>
-                        {getSortIcon('email')}
-                      </div>
-                    </th>
-                    <th 
-                      className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => handleSort('phone')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Phone</span>
-                        {getSortIcon('phone')}
-                      </div>
-                    </th>
-                    <th 
-                      className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => handleSort('gst')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>GST Number</span>
-                        {getSortIcon('gst')}
-                      </div>
-                    </th>
-                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">
-                      Address
-                    </th>
-                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {currentCustomers.length === 0 ? (
-                    <tr>
-                      <td colSpan="8" className="px-6 py-12 text-center">
-                        <div className="text-gray-400 mb-4">
-                          <Search className="w-8 h-8 mx-auto mb-2" />
-                        </div>
-                        <div className="text-gray-500">
-                          {searchTerm ? (
-                            <>
-                              <p className="font-medium">No customers found for "{searchTerm}"</p>
-                              <p className="text-sm mt-1">Try adjusting your search terms</p>
-                              <button 
-                                onClick={() => setSearchTerm('')}
-                                className="mt-2 text-blue-600 hover:text-blue-800 text-sm underline"
-                              >
-                                Clear search
-                              </button>
-                            </>
-                          ) : (
-                            <p>No customers found</p>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    currentCustomers.map((customer, index) => (
-                      <tr 
+              <>
+                {/* Mobile View - Cards */}
+                {isMobileView ? (
+                  <div className="space-y-4">
+                    {currentCustomers.map((customer) => (
+                      <CustomerCard 
                         key={customer._id || customer.id} 
-                        className={`transition-colors ${
-                          index === 0 
-                            ? 'bg-blue-50 hover:bg-blue-100 border-l-4 border-blue-400' 
-                            : 'hover:bg-gray-50'
-                        }`}
-                      >
-                        <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {customer.id}
-                        </td>
-                        <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {customer.userName}
-                        </td>
-                        <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <div className="max-w-32 truncate" title={customer.firmName}>
-                            {customer.firmName}
-                          </div>
-                        </td>
-                        <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <a 
-                            href={`mailto:${customer.email}`}
-                            className="text-blue-600 hover:text-blue-800 block max-w-40 truncate transition-colors"
-                            title={customer.email}
-                          >
-                            {customer.email}
-                          </a>
-                        </td>
-                        <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <div>
-                            <div className="max-w-28 truncate">{customer.phone}</div>
-                            {customer.alternativePhone && (
-                              <div className="text-gray-500 text-xs max-w-28 truncate">
-                                Alt: {customer.alternativePhone}
+                        customer={customer}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  /* Desktop View - Modern Table */
+                  <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                            <th 
+                              className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+                              onClick={() => handleSort('userName')}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span>Name</span>
+                                {getSortIcon('userName')}
                               </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono hidden lg:table-cell">
-                          {customer.gst}
-                        </td>
-                        <td className="px-3 lg:px-6 py-4 text-sm text-gray-900 max-w-xs hidden xl:table-cell">
-                          <div className="truncate" title={customer.firmAddress}>
-                            {customer.firmAddress}
-                          </div>
-                          {customer.description && (
-                            <div className="text-gray-500 text-xs mt-1 truncate" title={customer.description}>
-                              {customer.description}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex space-x-1 lg:space-x-2">
-                            <button
-                              onClick={() => handleEdit(customer)}
-                              className="bg-blue-500 hover:bg-blue-600 text-white px-2 lg:px-3 py-1 rounded text-xs transition-colors"
+                            </th>
+                            <th 
+                              className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+                              onClick={() => handleSort('firmName')}
                             >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(customer)}
-                              className="bg-red-500 hover:bg-red-600 text-white px-2 lg:px-3 py-1 rounded text-xs transition-colors"
+                              <div className="flex items-center gap-2">
+                                <span>Firm</span>
+                                {getSortIcon('firmName')}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+                              onClick={() => handleSort('email')}
                             >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                              <div className="flex items-center gap-2">
+                                <span>Email</span>
+                                {getSortIcon('email')}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+                              onClick={() => handleSort('phone')}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span>Phone</span>
+                                {getSortIcon('phone')}
+                              </div>
+                            </th>
+                            <th 
+                              className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors hidden lg:table-cell"
+                              onClick={() => handleSort('gst')}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span>GST</span>
+                                {getSortIcon('gst')}
+                              </div>
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {currentCustomers.map((customer) => (
+                            <tr 
+                              key={customer._id || customer.id} 
+                              className="hover:bg-blue-50 transition-colors"
+                            >
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div>
+                                  <p className="font-medium text-gray-900">{customer.userName}</p>
+                                  <p className="text-xs text-gray-500 mt-0.5">{customer.firmName}</p>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <p className="text-sm text-gray-900 max-w-xs truncate" title={customer.firmName}>
+                                  {customer.firmName}
+                                </p>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <a 
+                                  href={`mailto:${customer.email}`}
+                                  className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                                  title={customer.email}
+                                >
+                                  {customer.email}
+                                </a>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  <p>{customer.phone}</p>
+                                  {customer.alternativePhone && (
+                                    <p className="text-xs text-gray-500">Alt: {customer.alternativePhone}</p>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap hidden lg:table-cell">
+                                <p className="text-sm font-mono text-gray-700">{customer.gst}</p>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleEdit(customer)}
+                                    className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+                                    title="Edit customer"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(customer)}
+                                    className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
+                                    title="Delete customer"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
-            {/* Responsive Pagination */}
-            <div className="mt-6 flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
-          <div className="text-sm text-gray-700 text-center sm:text-left">
-            Page {currentPage} of {totalPages}
-          </div>
-          
-          <div className="flex items-center space-x-1 sm:space-x-2">
-            <button
-              onClick={goToPrevious}
-              disabled={currentPage === 1}
-              className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors ${
-                currentPage === 1
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              Prev
-            </button>
-
-            <div className="flex space-x-1">
-              {Array.from({ length: Math.min(totalPages, isMobileView ? 3 : 5) }, (_, i) => {
-                let page;
-                if (isMobileView) {
-                  page = Math.max(1, Math.min(totalPages - 2, currentPage - 1)) + i;
-                } else {
-                  page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-                }
+            {/* Modern Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white rounded-lg border border-gray-200 p-4">
+                <div className="text-sm text-gray-700 font-medium">
+                  Page <span className="font-bold text-blue-600">{currentPage}</span> of <span className="font-bold">{totalPages}</span>
+                </div>
                 
-                if (page <= totalPages) {
-                  return (
-                    <button
-                      key={page}
-                      onClick={() => goToPage(page)}
-                      className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors ${
-                        currentPage === page
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  );
-                }
-                return null;
-              })}
-            </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={goToPrevious}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-2 rounded-lg font-medium text-sm transition-all ${
+                      currentPage === 1
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                    }`}
+                  >
+                    ← Previous
+                  </button>
 
-            <button
-              onClick={goToNext}
-              disabled={currentPage === totalPages}
-              className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors ${
-                currentPage === totalPages
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              Next
-            </button>
-          </div>
-            </div>
+                  <div className="flex gap-1">
+                    {Array.from({ length: Math.min(totalPages, isMobileView ? 3 : 5) }, (_, i) => {
+                      let page;
+                      if (isMobileView) {
+                        page = Math.max(1, Math.min(totalPages - 2, currentPage - 1)) + i;
+                      } else {
+                        page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                      }
+                      
+                      if (page <= totalPages) {
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => goToPage(page)}
+                            className={`px-3 py-2 rounded-lg font-medium text-sm transition-all ${
+                              currentPage === page
+                                ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md'
+                                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      }
+                      return null;
+                    })}
+                  </div>
+
+                  <button
+                    onClick={goToNext}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-2 rounded-lg font-medium text-sm transition-all ${
+                      currentPage === totalPages
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                    }`}
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
 
-        {/* Modern Professional Alert Popup */}
+        {/* Modern Edit Modal */}
         {isEditModalOpen && editingCustomer && (
-          <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 w-96">
-            <div className="bg-white rounded-lg shadow-xl border border-gray-200">
-              {/* Modern Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 rounded-t-lg flex justify-between items-center">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-white rounded-full opacity-80"></div>
-                  <span className="text-white font-medium text-sm">Edit Customer Information</span>
-                </div>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex justify-between items-center sticky top-0">
+                <h2 className="text-white font-bold text-lg">Edit Customer</h2>
                 <button 
                   onClick={handleCancelEdit} 
-                  className="text-white hover:bg-white hover:text-red-600 w-6 h-6 flex items-center justify-center rounded transition-colors"
+                  className="text-white hover:bg-white hover:bg-opacity-20 p-1 rounded-lg transition-colors"
                 >
-                  ×
+                  <X className="w-5 h-5" />
                 </button>
               </div>
               
-              {/* Professional Form Body */}
-              <div className="p-5 space-y-4">
+              {/* Form Body */}
+              <div className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Name</label>
                     <input
                       type="text"
                       value={editingCustomer.userName || ''}
                       onChange={(e) => handleInputChange('userName', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="Full name"
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Firm Name *</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Firm Name</label>
                     <input
                       type="text"
                       value={editingCustomer.firmName || ''}
                       onChange={(e) => handleInputChange('firmName', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="Company name"
                     />
                   </div>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">Email Address</label>
                   <input
                     type="email"
                     value={editingCustomer.email || ''}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     placeholder="user@company.com"
                   />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Phone</label>
                     <input
                       type="text"
                       value={editingCustomer.phone || ''}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="+1-555-0000"
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Alt. Phone</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Alt. Phone</label>
                     <input
                       type="text"
                       value={editingCustomer.alternativePhone || ''}
                       onChange={(e) => handleInputChange('alternativePhone', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="Optional"
                     />
                   </div>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">GST Number</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">GST Number</label>
                   <input
                     type="text"
                     value={editingCustomer.gst || ''}
                     onChange={(e) => handleInputChange('gst', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     placeholder="22AAAAA0000A1Z5"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Address</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">Business Address</label>
                   <textarea
                     value={editingCustomer.firmAddress || ''}
                     onChange={(e) => handleInputChange('firmAddress', e.target.value)}
-                    rows="2"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    rows="3"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     placeholder="Complete business address"
                   />
                 </div>
               </div>
               
-              {/* Professional Action Buttons */}
-              <div className="px-5 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg flex justify-end space-x-3">
+              {/* Modal Footer */}
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-xl flex justify-end gap-3">
                 <button
                   onClick={handleCancelEdit}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                  className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveEdit}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                  className="px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all"
                 >
-                  Update Customer
+                  Save Changes
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Delete Modal - Alert Style with Visible Background */}
+        {/* Modern Delete Confirmation Modal */}
         {isDeleteModalOpen && customerToDelete && (
-          <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 w-96 pointer-events-none">
-            <div className="bg-white rounded-lg shadow-2xl border-2 border-red-300 pointer-events-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 flex justify-between items-center">
+                <h2 className="text-white font-bold text-lg">Delete Customer</h2>
+                <button 
+                  onClick={handleCancelDelete} 
+                  className="text-white hover:bg-white hover:bg-opacity-20 p-1 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              {/* Modal Body */}
               <div className="p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4 text-center">Delete Customer</h3>
-                <p className="text-sm text-gray-500 mb-4 text-center">
-                  Are you sure you want to delete <strong>{customerToDelete.userName}</strong> from <strong>{customerToDelete.firmName}</strong>?
-                </p>
-                <p className="text-xs text-red-500 mb-6 text-center">This action cannot be undone.</p>
-                
-                <div className="flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-3">
-                  <button
-                    onClick={handleCancelDelete}
-                    className="w-full sm:w-auto px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleConfirmDelete}
-                    className="w-full sm:w-auto px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
-                  >
-                    Delete
-                  </button>
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                      <Trash2 className="h-6 w-6 text-red-600" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      Delete {customerToDelete.userName}?
+                    </h3>
+                    <p className="text-gray-600 text-sm mb-4">
+                      This action cannot be undone. All customer data including invoices and records will be permanently deleted.
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      <span className="font-medium">Customer:</span> {customerToDelete.firmName}
+                    </p>
+                  </div>
                 </div>
+              </div>
+              
+              {/* Modal Footer */}
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-xl flex justify-end gap-3">
+                <button
+                  onClick={handleCancelDelete}
+                  className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  className="px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-red-600 to-red-700 rounded-lg hover:from-red-700 hover:to-red-800 transition-all"
+                >
+                  Delete Customer
+                </button>
               </div>
             </div>
           </div>

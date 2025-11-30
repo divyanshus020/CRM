@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, Edit3, Trash2, Plus, RefreshCw, TrendingUp, FileText, DollarSign, UserPlus, User } from 'lucide-react';
+import { Eye, Trash2, Plus, RefreshCw, FileText, DollarSign, User, TrendingUp } from 'lucide-react';
+import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { deleteChallan, getAllChallans, getAllCustomers } from '../../api/api';
 import { toast } from 'react-toastify';
 
 const Dashboard = () => {
   const [challans, setChallans] = useState([]);
-  const [custmoers, setCustomers] = useState([])
+  const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -16,156 +17,44 @@ const Dashboard = () => {
   const [challanToDelete, setChallanToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Mock data for demonstration (15+ records to show pagination)
-  const mockChallans = [
-    {
-      _id: '1',
-      challanNo: 'CH001',
-      customer: { name: 'Rajesh Kumar' },
-      contact: '9876543210',
-      date: '2025-01-15',
-      totalAmount: 59000
-    },
-    {
-      _id: '2',
-      challanNo: 'CH002',
-      customer: { name: 'Priya Sharma' },
-      contact: '9876543211',
-      date: '2025-01-14',
-      totalAmount: 29500
-    },
-    {
-      _id: '3',
-      challanNo: 'CH003',
-      customer: { name: 'Amit Singh' },
-      contact: '9876543212',
-      date: '2025-01-13',
-      totalAmount: 88500
-    },
-    {
-      _id: '4',
-      challanNo: 'CH004',
-      customer: { name: 'Sunita Gupta' },
-      contact: '9876543213',
-      date: '2025-01-12',
-      totalAmount: 41300
-    },
-    {
-      _id: '5',
-      challanNo: 'CH005',
-      customer: { name: 'Vikram Singh' },
-      contact: '9876543214',
-      date: '2025-01-11',
-      totalAmount: 53100
-    },
-    {
-      _id: '6',
-      challanNo: 'CH006',
-      customer: { name: 'Meera Jain' },
-      contact: '9876543215',
-      date: '2025-01-10',
-      totalAmount: 76700
-    },
-    {
-      _id: '7',
-      challanNo: 'CH007',
-      customer: { name: 'Rohit Patel' },
-      contact: '9876543216',
-      date: '2025-01-09',
-      totalAmount: 64900
-    },
-    {
-      _id: '8',
-      challanNo: 'CH008',
-      customer: { name: 'Kavya Reddy' },
-      contact: '9876543217',
-      date: '2025-01-08',
-      totalAmount: 49560
-    },
-    {
-      _id: '9',
-      challanNo: 'CH009',
-      customer: { name: 'Arjun Nair' },
-      contact: '9876543218',
-      date: '2025-01-07',
-      totalAmount: 44840
-    },
-    {
-      _id: '10',
-      challanNo: 'CH010',
-      customer: { name: 'Deepika Rao' },
-      contact: '9876543219',
-      date: '2025-01-06',
-      totalAmount: 61360
-    },
-    {
-      _id: '11',
-      challanNo: 'CH011',
-      customer: { name: 'Karan Sharma' },
-      contact: '9876543220',
-      date: '2025-01-05',
-      totalAmount: 56640
-    },
-    {
-      _id: '12',
-      challanNo: 'CH012',
-      customer: { name: 'Anjali Verma' },
-      contact: '9876543221',
-      date: '2025-01-04',
-      totalAmount: 73160
-    },
-    {
-      _id: '13',
-      challanNo: 'CH013',
-      customer: { name: 'Sanjay Kumar' },
-      contact: '9876543222',
-      date: '2025-01-03',
-      totalAmount: 38940
-    },
-    {
-      _id: '14',
-      challanNo: 'CH014',
-      customer: { name: 'Pooja Singh' },
-      contact: '9876543223',
-      date: '2025-01-02',
-      totalAmount: 83780
-    },
-    {
-      _id: '15',
-      challanNo: 'CH015',
-      customer: { name: 'Manish Agarwal' },
-      contact: '9876543224',
-      date: '2025-01-01',
-      totalAmount: 68440
-    }
-  ];
-
   useEffect(() => {
-    fetchChallans();
+    fetchData();
   }, []);
 
-  const fetchChallans = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // In real implementation, replace this with your API call:
-       const data = await getAllChallans();
-       const cust = await getAllCustomers();
-      setCustomers(cust.data || []);
-      console.log("hiiiiiiii",custmoers)
-      if(data && data.length > 0) {
-        setChallans(data);
-      } else {
-        setChallans(mockChallans); // Fallback to mock data if API returns empty
-      }
-      console.log('Challans fetched:', data || mockChallans);
       setError('');
+      
+      const [challanData, customerData] = await Promise.all([
+        getAllChallans(),
+        getAllCustomers()
+      ]);
+
+      if (challanData && challanData.data) {
+        setChallans(Array.isArray(challanData.data) ? challanData.data : []);
+      } else if (Array.isArray(challanData)) {
+        setChallans(challanData);
+      } else {
+        setChallans([]);
+      }
+
+      if (customerData && customerData.data) {
+        setCustomers(Array.isArray(customerData.data) ? customerData.data : []);
+      } else if (Array.isArray(customerData)) {
+        setCustomers(customerData);
+      } else {
+        setCustomers([]);
+      }
+
+      console.log('Challans fetched:', challanData);
+      console.log('Customers fetched:', customerData);
+      
     } catch (err) {
-      console.error('Error fetching challans:', err);
-      setChallans(mockChallans); // Fallback to mock data
-      setError(err.message);
+      console.error('Error fetching data:', err);
+      setError(err.message || 'Failed to load data');
+      setChallans([]);
+      setCustomers([]);
     } finally {
       setLoading(false);
     }
@@ -180,57 +69,90 @@ const Dashboard = () => {
       currency: 'INR',
     }).format(amount || 0);
 
-  // Open delete confirmation modal
   const openDeleteModal = (challan) => {
     setChallanToDelete(challan);
     setShowDeleteModal(true);
   };
 
-  // Close delete confirmation modal
   const closeDeleteModal = () => {
     setShowDeleteModal(false);
     setChallanToDelete(null);
     setIsDeleting(false);
   };
 
-  // Confirm delete challan function
   const confirmDeleteChallan = async () => {
     if (!challanToDelete) return;
 
     try {
       setIsDeleting(true);
       
-      // Call actual delete API
-     const response = await deleteChallan(challanToDelete._id);
+      const response = await deleteChallan(challanToDelete._id);
 
-     if(response.success) {
-      
-      // Update local state
-      const updatedChallans = challans.filter(challan => challan._id !== challanToDelete._id);
-      setChallans(updatedChallans);
-      
-      // Adjust current page if needed
-      const newTotalPages = Math.ceil(updatedChallans.length / itemsPerPage);
-      if (currentPage > newTotalPages && newTotalPages > 0) {
-        setCurrentPage(newTotalPages);
+      if (response.success) {
+        const updatedChallans = challans.filter(challan => challan._id !== challanToDelete._id);
+        setChallans(updatedChallans);
+        
+        const newTotalPages = Math.ceil(updatedChallans.length / itemsPerPage);
+        if (currentPage > newTotalPages && newTotalPages > 0) {
+          setCurrentPage(newTotalPages);
+        }
+        
+        closeDeleteModal();
+
+        toast.success('Challan deleted successfully!', {
+          position: 'top-center',
+          autoClose: 5000,
+        });
       }
-      
-      closeDeleteModal();
-
-      
-      // Show success message (you can replace this with a toast notification)
-
-      toast.success('Challan deleted successfully!', {
-        position: 'top-center',
-        autoClose: 5000,
-      });
-    }
       
     } catch (error) {
       console.error('Error deleting challan:', error);
-      alert('Failed to delete challan: ' + error.message);
+      toast.error('Failed to delete challan: ' + error.message, {
+        position: 'top-center',
+        autoClose: 5000,
+      });
       setIsDeleting(false);
     }
+  };
+
+  // Calculate chart data
+  const getChallansByDate = () => {
+    const groupedByDate = {};
+    challans.forEach(challan => {
+      const date = formatDate(challan.date);
+      groupedByDate[date] = (groupedByDate[date] || 0) + 1;
+    });
+    return Object.entries(groupedByDate).map(([date, count]) => ({
+      date,
+      count,
+    }));
+  };
+
+  const getChallanValuesByDate = () => {
+    const groupedByDate = {};
+    challans.forEach(challan => {
+      const date = formatDate(challan.date);
+      groupedByDate[date] = (groupedByDate[date] || 0) + (challan.totalAmount || 0);
+    });
+    return Object.entries(groupedByDate).map(([date, value]) => ({
+      date,
+      value: Math.round(value),
+    }));
+  };
+
+  const getChallanStatusData = () => {
+    const total = challans.length;
+    const lastWeek = challans.filter(c => {
+      const challanDate = new Date(c.date);
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return challanDate >= weekAgo;
+    }).length;
+    
+    return [
+      { name: 'Last 7 Days', value: lastWeek, color: '#3b82f6' },
+      { name: 'Older', value: total - lastWeek, color: '#e5e7eb' },
+    ];
   };
 
   const totalValue = challans.reduce((sum, challan) => sum + (challan.totalAmount || 0), 0);
@@ -273,6 +195,10 @@ const Dashboard = () => {
     );
   }
 
+  const challansByDate = getChallansByDate();
+  const challanValues = getChallanValuesByDate();
+  const statusData = getChallanStatusData();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       {/* Header */}
@@ -288,11 +214,11 @@ const Dashboard = () => {
                 onClick={() => window.location.href = "/new-customer"}
                 className="inline-flex items-center justify-center gap-2 bg-emerald-600 text-white px-3 sm:px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors duration-200 shadow-lg hover:shadow-xl text-sm sm:text-base"
               >
-                <UserPlus className="w-4 h-4" />
+                <Plus className="w-4 h-4" />
                 <span className="sm:inline">New Customer</span>
               </button>
               <button
-                onClick={fetchChallans}
+                onClick={fetchData}
                 disabled={loading}
                 className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
               >
@@ -315,14 +241,88 @@ const Dashboard = () => {
           />
           <StatCard
             title="Total Customers"
-            value={custmoers.length}
+            value={customers.length}
             icon={User}
             color="from-green-500 to-green-600"
           />
-          
+          <StatCard
+            title="Total Value"
+            value={formatCurrency(totalValue)}
+            icon={DollarSign}
+            color="from-purple-500 to-purple-600"
+          />
         </div>
 
-        {/* Challans Section */}
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Pie Chart - Challan Status */}
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Challan Status</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={statusData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, value }) => `${name}: ${value}`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {statusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => `${value} challans`} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Line Chart - Challan Count by Date */}
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Challans Count</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={challansByDate}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="count" 
+                  stroke="#3b82f6" 
+                  strokeWidth={2}
+                  dot={{ fill: '#3b82f6', r: 5 }}
+                  activeDot={{ r: 7 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Bar Chart - Challan Value by Date */}
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-6 mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue by Date</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={challanValues}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip formatter={(value) => formatCurrency(value)} />
+              <Legend />
+              <Bar 
+                dataKey="value" 
+                fill="#10b981" 
+                name="Amount (₹)"
+                radius={[8, 8, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Challans Table Section */}
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg overflow-hidden">
           <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -340,72 +340,33 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {error ? (
+          {error && !challans.length ? (
             <div className="p-4 sm:p-6">
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
-                    <h3 className="text-red-800 font-medium">Error</h3>
-                    <p className="text-red-700 text-sm mt-1">{error}</p>
+                    <h3 className="text-yellow-800 font-medium">No Data Available</h3>
+                    <p className="text-yellow-700 text-sm mt-1">{error || 'No challans found. Create your first challan to get started.'}</p>
                   </div>
                   <button
-                    onClick={fetchChallans}
-                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm w-full sm:w-auto"
+                    onClick={fetchData}
+                    className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-sm w-full sm:w-auto"
                   >
                     Retry
                   </button>
                 </div>
               </div>
             </div>
+          ) : challans.length === 0 ? (
+            <div className="p-4 sm:p-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+                <FileText className="w-12 h-12 text-blue-400 mx-auto mb-3" />
+                <h3 className="text-blue-800 font-medium">No Challans Yet</h3>
+                <p className="text-blue-700 text-sm mt-1">Start by creating your first challan</p>
+              </div>
+            </div>
           ) : (
             <>
-              {/* Mobile Card View */}
-              <div className="block sm:hidden">
-                {paginatedChallans.map((challan) => (
-                  <div key={challan._id} className="border-b border-gray-200 p-4 hover:bg-gray-50 transition-colors duration-150">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {challan.challanNo}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-semibold text-green-600">
-                          {formatCurrency(challan.totalAmount)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {formatDate(challan.date)}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mb-3">
-                      <div className="font-medium text-gray-900 text-sm">
-                        {challan.customer?.name || 'N/A'}
-                      </div>
-                      <div className="text-xs text-gray-600 font-mono">
-                        Total: {formatCurrency(challan.totalAmount)}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <ActionButton
-                        onClick={() => window.location.href = `/view/${challan._id}`}
-                        icon={Eye}
-                        className="text-blue-600 hover:bg-blue-50 text-xs px-2 py-1"
-                      >
-                        View
-                      </ActionButton>
-                      <ActionButton
-                        onClick={() => openDeleteModal(challan)}
-                        icon={Trash2}
-                        className="text-red-600 hover:bg-red-50 text-xs px-2 py-1"
-                      >
-                        Delete
-                      </ActionButton>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
               {/* Desktop Table View */}
               <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full">
@@ -420,7 +381,7 @@ const Dashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {paginatedChallans.map((challan, index) => (
+                    {paginatedChallans.map((challan) => (
                       <tr key={challan._id} className="hover:bg-gray-50 transition-colors duration-150">
                         <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                           <span className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-blue-100 text-blue-800">
@@ -523,7 +484,7 @@ const Dashboard = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl border border-gray-200">
             <div className="flex items-center mb-4">
               <div className="bg-red-100 rounded-full p-2 mr-3">

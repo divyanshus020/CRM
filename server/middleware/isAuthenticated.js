@@ -1,34 +1,29 @@
-import jwt from "jsonwebtoken"
+import jwt from 'jsonwebtoken';
 
-const isAuthntiacted = async (req, res, next) => {
-    try {
-        const token = req.cookies.token;
-
-        // console.log(req.cookies)
-        if(!token){
-            return res.status(401).json({
-                message: "User not authenticated",
-                success: false,
-              });
-        }
-
-        const decode = await jwt.verify(token, process.env.SECRET_KEY)
-
-        
-
-        if(!decode){
-            return res.status(401).json({
-                message: "Invalid Token",
-                success: false,
-              });
-        }
-
-        req.id = decode.userId
-
-        next()
-    } catch (error) {
-        console.log(error)
+const isAuthenticated = (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'No token provided' });
     }
-}
 
-export default isAuthntiacted
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    
+    // Store decoded token in req.user
+    req.user = decoded;
+    req.id = decoded.id; // Also store id directly
+    
+    console.log('Token verified, user:', decoded);
+    next();
+  } catch (error) {
+    console.error('Auth error:', error.message);
+    return res.status(401).json({ 
+      success: false, 
+      message: 'User not authenticated', 
+      error: error.message 
+    });
+  }
+};
+
+export default isAuthenticated;

@@ -4,12 +4,22 @@ const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 // Common axios instance (optional but recommended)
 const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true, // cookies send honge (agar jarurat ho)
+  baseURL: 'http://localhost:5000/api/v1',
+  withCredentials: true,
 });
+
+// Add token to every request BEFORE sending
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    console.log('Token being sent:', token); // Debug log
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 // ✅ User Registration
 export const registerUser = async (userData) => {
@@ -63,15 +73,22 @@ export const createChallan = async (challanData) => {
 // ✅ Get All Challans
 export const getAllChallans = async () => {
   try {
+    const token = localStorage.getItem('token'); // Get token from localStorage
+    
+    if (!token) {
+      throw new Error('User not authenticated');
+    }
+    
     const response = await axiosInstance.get('/challan/get-challans', {
-      headers: getAuthHeaders(),
-      withCredentials: true, // cookies send honge
+      headers: {
+        Authorization: `Bearer ${token}`, // Send token in header
+      },
     });
-
-    console.log('Fetched Challans:', response.data);
+    
     return response.data;
   } catch (error) {
-    handleAxiosError(error, 'Failed to fetch challans');
+    handleAxiosError(error);
+    throw error;
   }
 };
 
@@ -94,72 +111,63 @@ export const getChallanById = async (challanId) => {
   }
 }
 
-export const newCostomer = async (customerData) => {
+// Create a new customer
+export const createCustomer = async (customerData) => {
   try {
-    const response = await axiosInstance.post('/coustmer/new-coustmer', customerData, {
-      headers: getAuthHeaders(),
-
-      withCredentials: true, // cookies send honge
-    });
+    const response = await axiosInstance.post('/customers', customerData);
     console.log('New Customer Created:', response.data);
     return response.data;
   } catch (error) {
-    handleAxiosError(error, 'Failed to create new customer');
+    console.error('Create customer error:', error);
+    throw error;
   }
 };
 
+// Get all customers
 export const getAllCustomers = async () => {
   try {
-    const response = await axiosInstance.get('/coustmer/get-coustmers', {
-      headers: getAuthHeaders(),
-      withCredentials: true, // cookies send honge
-    });
-
+    const response = await axiosInstance.get('/customers');
     console.log('Fetched Customers:', response.data);
     return response.data;
   } catch (error) {
-    handleAxiosError(error, 'Failed to fetch customers');
-}
-}
-
-export const editCustomer = async (customerId, customerData) => {
-  try {
-    const response = await axiosInstance.put(`/coustmer/edit-coustmer/${customerId}`, customerData, {
-      headers: getAuthHeaders(),
-      withCredentials: true, // cookies send honge
-    });
-    console.log('Customer Edited:', response.data);
-    return response.data;
-  } catch (error) {
-    handleAxiosError(error, 'Failed to edit customer');
+    console.error('Get all customers error:', error);
+    throw error;
   }
 };
 
+// Update a customer
+export const updateCustomer = async (customerId, customerData) => {
+  try {
+    const response = await axiosInstance.put(`/customers/${customerId}`, customerData);
+    console.log('Customer Updated:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Update customer error:', error);
+    throw error;
+  }
+};
+
+// Delete a customer
+export const deleteCustomer = async (customerId) => {
+  try {
+    const response = await axiosInstance.delete(`/customers/${customerId}`);
+    console.log('Customer Deleted:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Delete customer error:', error);
+    throw error;
+  }
+};
+
+// Delete a challan
 export const deleteChallan = async (challanId) => {
   try {
-    const response = await axiosInstance.delete(`/challan/delete-challan/${challanId}`, {
-      headers: getAuthHeaders(),
-      withCredentials: true, // cookies send honge
-    });
-
+    const response = await axiosInstance.delete(`/challan/delete-challan/${challanId}`);
     console.log('Deleted Challan:', response.data);
     return response.data;
   } catch (error) {
-    handleAxiosError(error, 'Failed to delete challan');
-  }
-};
-
-export const deleteCustomer = async (customerId) => {
-  try {
-    const response = await axiosInstance.delete(`/coustmer/delete-coustmer/${customerId
-}`, {
-      headers: getAuthHeaders(),
-      withCredentials: true, // cookies send honge
-    });
-    console.log('Deleted Customer:', response.data);
-    return response.data;
-  } catch (error) {
-    handleAxiosError(error, 'Failed to delete customer');
+    console.error('Delete challan error:', error);
+    throw error;
   }
 };
 

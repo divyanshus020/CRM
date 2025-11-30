@@ -1,28 +1,48 @@
 import express from 'express';
-import { 
-  createCustomer, 
-  getAllCustomers, 
-  getCustomer, 
-  updateCustomer, 
-  deleteCustomer 
+import {
+  createCustomer,
+  getAllCustomers,
+  getCustomer,
+  updateCustomer,
+  deleteCustomer
 } from '../controllers/customerController.js';
-import { isAuthenticated } from '../middleware/auth.js';
+import { validateCustomer } from '../middleware/validation.js';
 
 const router = express.Router();
 
-// Create a new customer
-router.post('/new-customer', isAuthenticated, createCustomer);
+/**
+ * @route   POST /api/v1/customers
+ * @desc    Create a new customer
+ * @access  Public
+ */
+router.post('/', createCustomer);
 
-// Get all customers
-router.get('/get-coustmers', getAllCustomers);
+/**
+ * @route   GET /api/v1/customers
+ * @desc    Get all customers
+ * @access  Public
+ */
+router.get('/', getAllCustomers);
 
-// Get single customer
-router.get('/:id', isAuthenticated, getCustomer);
+/**
+ * @route   GET /api/v1/customers/:id
+ * @desc    Get single customer by ID
+ * @access  Public
+ */
+router.get('/:id', getCustomer);
 
-// Update customer
-router.put('/:id', isAuthenticated, updateCustomer);
+/**
+ * @route   PUT /api/v1/customers/:id
+ * @desc    Update a customer
+ * @access  Public
+ */
+router.put('/:id', updateCustomer);
 
-// Delete customer
-router.delete('/:id', isAuthenticated, deleteCustomer);
+/**
+ * @route   DELETE /api/v1/customers/:id
+ * @desc    Delete a customer
+ * @access  Public
+ */
+router.delete('/:id', deleteCustomer);
 
 export default router;

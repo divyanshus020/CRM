@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   Form,
@@ -33,9 +34,10 @@ import {
   FileText,
   CheckSquare
 } from 'lucide-react';
+import { ExclamationCircleOutlined } from '@ant-design/icons';
 
 import dayjs from 'dayjs';
-import { createChallan, getAllCustomers, newCostomer } from '../../api/api';
+import { createChallan, getAllCustomers, createCustomer } from '../../api/api';
 import { toast } from 'react-toastify';
 
 
@@ -43,7 +45,18 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
+// Fixed Company Data
+const COMPANY_DATA = {
+  firmName: 'RIDHI SIDHI ENTERPRISES',
+  gstin: '08AABCR1234M1ZB',
+  pan: 'AABCR1234M',
+  contact: '9829012345',
+  firmAddress: 'Plot No.130, Rishabh Nagar, Doli Jhanwar Road, Boranada - JODHPUR (Raj.) - 342001',
+  specialization: 'Specialist For :- Plastic Dyes & Molds, Iron Cutting Dye and Plastic Molding & Iron Job works'
+};
+
 const CreateChallanForm = () => {
+  const navigate = useNavigate();
   const [form] = Form.useForm();
   const [customerForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -60,6 +73,7 @@ const CreateChallanForm = () => {
     gstAmount: 0,
     totalAmount: 0
   });
+  const [customerDetails, setCustomerDetails] = useState({});
 
   // Memoized currency formatter
   const formatCurrency = useMemo(() => {
@@ -74,7 +88,7 @@ const CreateChallanForm = () => {
     const subTotal = items.reduce((sum, item) => sum + (item.amount || 0), 0);
     const gstAmount = (subTotal * calculations.gstPercentage) / 100;
     const totalAmount = subTotal + gstAmount;
-    
+
     return { subTotal, gstAmount, totalAmount };
   }, [items, calculations.gstPercentage]);
 
@@ -90,7 +104,7 @@ const CreateChallanForm = () => {
   const customerOptions = useMemo(() => {
     return customers.map(customer => (
       <Option key={customer._id} value={customer._id}>
-        {customer.userName || customer.firmName} 
+        {customer.userName || customer.firmName}
         {customer.firmName && customer.userName && ` (${customer.firmName})`}
       </Option>
     ));
@@ -101,16 +115,16 @@ const CreateChallanForm = () => {
     setItems(prevItems => {
       return prevItems.map(item => {
         if (item.key !== key) return item;
-        
+
         const updatedItem = { ...item, [field]: value };
-        
+
         // Calculate amount when quantity or rate changes
         if (field === 'quantity' || field === 'rate') {
           const quantity = field === 'quantity' ? value : updatedItem.quantity;
           const rate = field === 'rate' ? value : updatedItem.rate;
           updatedItem.amount = (quantity || 0) * (rate || 0);
         }
-        
+
         return updatedItem;
       });
     });
@@ -146,7 +160,7 @@ const CreateChallanForm = () => {
           placeholder="HSN Code"
           value={record.hsnCode}
           onChange={(e) => handleItemChange(record.key, 'hsnCode', e.target.value)}
-          //status={!record.hsnCode ? 'error' : ''}
+        //status={!record.hsnCode ? 'error' : ''}
         />
       ),
     },
@@ -271,14 +285,75 @@ const CreateChallanForm = () => {
     console.log('Selected Customer:', customer);
   }, [customers]);
 
+  const onCustomerSelect = (customerId) => {
+    try {
+      // Find the selected customer from the customers list
+      const selectedCustomer = customers.find(c => c._id === customerId);
+
+      if (selectedCustomer) {
+        // Display all customer data
+        console.log('Selected Customer Data:', selectedCustomer);
+
+        // Update form or display area with customer details
+        setCustomerDetails({
+          id: selectedCustomer._id,
+          name: selectedCustomer.userName,
+          firmName: selectedCustomer.firmName,
+          gst: selectedCustomer.gst,
+          firmAddress: selectedCustomer.firmAddress,
+          email: selectedCustomer.email,
+          phone: selectedCustomer.phone,
+          createdAt: selectedCustomer.createdAt,
+          updatedAt: selectedCustomer.updatedAt,
+        });
+
+        // Or update form fields
+        form.setFieldsValue({
+          customerName: selectedCustomer.userName,
+          firmName: selectedCustomer.firmName,
+          gst: selectedCustomer.gst,
+          firmAddress: selectedCustomer.firmAddress,
+          email: selectedCustomer.email,
+          phone: selectedCustomer.phone,
+        });
+      }
+    } catch (error) {
+      console.error('Error selecting customer:', error);
+    }
+  };
+
   const handleAddCustomer = useCallback(async (values) => {
     try {
       setCustomerLoading(true);
       console.log('Adding Customer with values:', values);
-      const response = await newCostomer(values);
-      
+
+      // Map frontend form fields to backend schema
+      const customerData = {
+        name: values.userName,                    // Backend expects 'name'
+        firmName: values.firmName,
+        email: values.email,
+        phone: values.phone,
+        firmAddress: values.firmfirmAddress               // Backend expects 'firmAddress'
+      };
+
+      // Only include optional fields if they have values
+      if (values.gst) {
+        customerData.gst = values.gst;      // Backend expects 'gst'
+      }
+
+      if (values.alternativePhone) {
+        customerData.alternativePhone = values.alternativePhone;
+      }
+
+      if (values.description) {
+        customerData.description = values.description;
+      }
+
+      console.log('Mapped customer data to send:', customerData);
+      const response = await createCustomer(customerData);
+
       if (response.success) {
-        toast.success('Customer added successfully!',{
+        toast.success('Customer added successfully!', {
           position: 'top-center',
           autoClose: 5000,
         });
@@ -290,7 +365,7 @@ const CreateChallanForm = () => {
       }
     } catch (error) {
       console.error('Error adding customer:', error);
-      message.error('Failed to add customer');
+      message.error(error.message || 'Failed to add customer');
     } finally {
       setCustomerLoading(false);
     }
@@ -329,118 +404,215 @@ const CreateChallanForm = () => {
     setSelectedCustomer(null);
     setItems([{ key: Date.now(), particulars: '', hsnCode: '', quantity: 1, rate: 0, amount: 0 }]);
     generateChallanNumber();
-    
-    // Reset default values
+
+    // Reset with fixed company data
     form.setFieldsValue({
       date: dayjs(),
-      firmName: 'ABC Traders',
-      gstin: '22ABCDE1234F1Z5',
-      pan: 'ABCDE1234F',
-      contact: '9876543210',
-      issuedBy: 'Ramesh Kumar',
+      firmName: COMPANY_DATA.firmName,
+      gstin: COMPANY_DATA.gstin,
+      pan: COMPANY_DATA.pan,
+      contact: COMPANY_DATA.contact,
+      issuedBy: '',
       eoe: false
     });
   }, [form, generateChallanNumber]);
 
   const handleSubmit = useCallback(async (values) => {
-    console.log('Form Values before validation:', values);
+    console.log('=== CHALLAN CREATION STARTED ===');
+    console.log('Form Values:', values);
+    console.log('Form Values (Stringified):', JSON.stringify(values, null, 2));
     console.log('Selected Customer State:', selectedCustomer);
+    console.log('Selected Customer (Stringified):', JSON.stringify(selectedCustomer, null, 2));
+    console.log('Items:', items);
+    console.log('Items (Stringified):', JSON.stringify(items, null, 2));
+    console.log('Calculations:', calculations);
+    console.log('Calculations (Stringified):', JSON.stringify(calculations, null, 2));
 
-    values.customer = selectedCustomer;
-
-    if (!values.customer) {
+    // Ensure customer is selected
+    if (!selectedCustomer || !selectedCustomer._id) {
+      console.error('ERROR: No customer selected');
       message.error('Please select a customer');
       return;
     }
 
-    const customerFromList = customers.find(c => c._id === values.customer._id);
-    if (!customerFromList) {
-      message.error('Selected customer not found. Please refresh and try again.');
-      return;
+    // Validate selected customer details - only required fields
+    const requiredCustomerFields = ['userName', 'phone', 'firmAddress', 'firmName', 'gst'];
+    for (const field of requiredCustomerFields) {
+      if (!selectedCustomer[field]) {
+        message.error(`Selected customer is missing required field: ${field}`);
+        return;
+      }
     }
 
-    if (!validateItems()) {
-      return;
-    }
+    console.log('✓ Customer validation passed');
 
+    // Show confirmation modal before creating challan
+    Modal.confirm({
+      title: 'Confirm Challan Creation',
+      icon: <ExclamationCircleOutlined />,
+      content: (
+        <div>
+          <p><strong>Challan No:</strong> {values.challanNo}</p>
+          <p><strong>Customer:</strong> {selectedCustomer.userName}</p>
+          <p><strong>Firm:</strong> {selectedCustomer.firmName}</p>
+          <p><strong>GST:</strong> {selectedCustomer.gst}</p>
+          <p><strong>Date:</strong> {values.date?.format('DD/MM/YYYY')}</p>
+          <p><strong>Total Amount:</strong> ₹{calculations.totalAmount || 0}</p>
+          <p style={{ marginTop: '15px', color: '#666' }}>
+            Are you sure you want to create this challan?
+          </p>
+        </div>
+      ),
+      okText: 'Create',
+      cancelText: 'Cancel',
+      okType: 'primary',
+      onOk: async () => {
+        console.log('✓ User confirmed challan creation');
+        await submitChallan(values);
+      },
+      onCancel() {
+        console.log('✗ Challan creation cancelled by user');
+      },
+    });
+
+  }, [selectedCustomer, items, calculations]);
+
+  const submitChallan = async (values) => {
     try {
-      setLoading(true);
+      console.log('=== SUBMITTING CHALLAN ===');
 
       const challanData = {
         challanNo: values.challanNo,
-        date: values.date.toDate(),
-        firmName: values.firmName,
+        date: values.date ? values.date.toISOString() : new Date().toISOString(),
+        issuedBy: values.issuedBy,
+        customerId: selectedCustomer._id,
+        customerName: selectedCustomer.userName,           // Maps to customer.name
+        customerAddress: selectedCustomer.firmAddress,     // Maps to customer.address
+        customerEmail: selectedCustomer.email,
+        customerPhone: selectedCustomer.phone,
+        firmName: selectedCustomer.firmName || values.firmName,
+        gstNumber: selectedCustomer.gst,                   // Maps to gstin in schema
         gstin: values.gstin,
         pan: values.pan,
-        contact: values.contact,
-        customer: {
-          id: customerFromList._id,
-          name: customerFromList.userName || customerFromList.firmName || '',
-          address: customerFromList.firmAddress || '',
-          gstin: customerFromList.gst || ''
-        },
-        poNumber: values.poNumber || '',
-        poDate: values.poDate ? values.poDate.toDate() : null,
-        vehicleNo: values.vehicleNo || '',
-        items: items.map(({ key, ...item }) => item),
+        gst: selectedCustomer.gst,
+        items: items.map(({ key, ...rest }) => rest),     // Remove key from items
+        narration: values.narration || '',
+        totalAmount: calculations.totalAmount,
+        gstAmount: calculations.gstAmount,
         subTotal: calculations.subTotal,
         gstPercentage: calculations.gstPercentage,
-        gstAmount: calculations.gstAmount,
-        totalAmount: calculations.totalAmount,
-        eoe: values.eoe || false,
-        receiverSign: values.receiverSign || null,
-        issuedBy: values.issuedBy
+        poNumber: values.poNumber,
+        poDate: values.poDate ? values.poDate.toISOString() : null,
+        vehicleNo: values.vehicleNo,
+        contact: values.contact,
+        receiverSign: values.receiverSign || '',
+        eoe: values.eoe,
       };
 
-      console.log('Challan Data to be sent:', challanData);
-      
-      const response = await createChallan(challanData);
-
-      if(response.success) {
-
-        toast.success(response.message || 'Challan created successfully!', {
-          position: 'top-center',
-          autoClose: 8000,
+      console.log('Challan Data Object:', challanData);
+      console.log('Challan Data (Stringified):', JSON.stringify(challanData, null, 2));
+      console.log('Number of Items:', challanData.items.length);
+      console.log('Items Details:');
+      challanData.items.forEach((item, index) => {
+        console.log(`  Item ${index + 1}:`, {
+          particulars: item.particulars,
+          hsnCode: item.hsnCode,
+          quantity: item.quantity,
+          rate: item.rate,
+          amount: item.amount
         });
+      });
+      console.log('Total Calculations:');
+      console.log(`  Sub Total: ₹${challanData.subTotal}`);
+      console.log(`  GST (${challanData.gstPercentage}%): ₹${challanData.gstAmount}`);
+      console.log(`  Final Total: ₹${challanData.totalAmount}`);
 
-         message.success('Challan created successfully!');
-         resetForm();
+      // Validate required fields before sending
+      if (!challanData.customerName) {
+        throw new Error('Customer name is required');
+      }
+      if (!challanData.customerAddress) {
+        throw new Error('Customer address is required');
       }
 
-      
-     
-      
+      console.log('Sending API request...');
+      const response = await createChallan(challanData);
+
+      console.log('API Response:', response);
+      console.log('API Response (Stringified):', JSON.stringify(response, null, 2));
+
+      if (response.success) {
+        console.log('✓ Challan created successfully');
+        console.log('Response Data:', response.data);
+
+        // Show success notification
+        Modal.success({
+          title: 'Challan Created Successfully!',
+          content: (
+            <div>
+              <p><strong>Challan No:</strong> {response.data?.challanNo}</p>
+              <p><strong>Customer:</strong> {response.data?.customer?.name}</p>
+              <p><strong>Amount:</strong> ₹{response.data?.totalAmount}</p>
+              <p style={{ marginTop: '10px', color: '#52c41a' }}>
+                ✓ Your challan has been created and saved successfully.
+              </p>
+            </div>
+          ),
+          onOk() {
+            console.log('Success modal closed, redirecting to dashboard');
+            // Reset form and navigate
+            form.resetFields();
+            setSelectedCustomer(null);
+            setItems([{ key: Date.now(), particulars: '', hsnCode: '', quantity: 1, rate: 0, amount: 0 }]);
+            navigate('/dashboard');
+          },
+        });
+
+        message.success('Challan created successfully!', 3);
+      } else {
+        console.error('✗ API returned success: false');
+        console.error('Error message:', response.message);
+        throw new Error(response.message || 'Failed to create challan');
+      }
     } catch (error) {
-      console.error('Error creating challan:', error);
-      message.error('Failed to create challan. Please try again.');
-    } finally {
-      setLoading(false);
+      console.error('✗ Error creating challan:', error);
+      console.error('Error Message:', error.message);
+      console.error('Error Stack:', error.stack);
+      console.error('Full Error Object:', error);
+
+      Modal.error({
+        title: 'Failed to Create Challan',
+        content: error.message || 'An error occurred while creating the challan. Please try again.',
+        onOk() {
+          console.log('Error modal closed');
+        },
+      });
     }
-  }, [selectedCustomer, customers, validateItems, items, calculations, resetForm]);
+  };
 
   // Initialize component
   useEffect(() => {
     fetchCustomers();
     generateChallanNumber();
-    
-    // Set default values
+
+    // Set default values with fixed company data
     form.setFieldsValue({
       date: dayjs(),
-      firmName: 'ABC Traders',
-      gstin: '22ABCDE1234F1Z5',
-      pan: 'ABCDE1234F',
-      contact: '9876543210',
-      issuedBy: 'Ramesh Kumar',
+      firmName: COMPANY_DATA.firmName,
+      gstin: COMPANY_DATA.gstin,
+      pan: COMPANY_DATA.pan,
+      contact: COMPANY_DATA.contact,
+      issuedBy: '',
       eoe: false
     });
   }, [fetchCustomers, generateChallanNumber, form]);
 
   // Validation alert component
   const ValidationAlert = useMemo(() => {
-    const hasInvalidItems = items.some(item => 
+    const hasInvalidItems = items.some(item =>
       !item.particulars || !item.hsnCode || item.quantity <= 0 || item.rate <= 0
     );
-    
+
     return hasInvalidItems ? (
       <Alert
         message="Please fill all item details"
@@ -450,6 +622,18 @@ const CreateChallanForm = () => {
       />
     ) : null;
   }, [items]);
+
+  // Display customer info in JSX
+  const customerInfoDisplay = (
+    <div className="customer-info">
+      <p><strong>Name:</strong> {customerDetails?.name}</p>
+      <p><strong>Firm:</strong> {customerDetails?.firmName}</p>
+      <p><strong>GST:</strong> {customerDetails?.gst}</p>
+      <p><strong>firmAddress:</strong> {customerDetails?.firmAddress}</p>
+      <p><strong>Email:</strong> {customerDetails?.email}</p>
+      <p><strong>Phone:</strong> {customerDetails?.phone}</p>
+    </div>
+  );
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen">
@@ -465,7 +649,7 @@ const CreateChallanForm = () => {
         className="space-y-6"
       >
         {/* Basic Information */}
-        <Card 
+        <Card
           title={
             <span className="flex items-center gap-2 text-lg">
               <Hash size={20} className="text-blue-600" />
@@ -517,15 +701,18 @@ const CreateChallanForm = () => {
         </Card>
 
         {/* Firm Information */}
-        <Card 
+        <Card
           title={
             <span className="flex items-center gap-2 text-lg">
               <Building size={20} className="text-green-600" />
-              Firm Information
+              Firm Information (Fixed)
             </span>
           }
-          className="shadow-sm"
+          className="shadow-sm bg-blue-50"
         >
+          <div className="bg-blue-100 border border-blue-300 rounded-lg p-3 mb-4">
+            <p className="text-blue-800 text-sm"><strong>Note:</strong> Your company information is fixed and cannot be changed.</p>
+          </div>
           <Row gutter={24}>
             <Col xs={24} md={8}>
               <Form.Item
@@ -533,7 +720,7 @@ const CreateChallanForm = () => {
                 name="firmName"
                 rules={[{ required: true, message: 'Firm name is required' }]}
               >
-                <Input placeholder="Enter firm name" />
+                <Input placeholder="Enter firm name" readOnly className="bg-gray-100" />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
@@ -542,7 +729,7 @@ const CreateChallanForm = () => {
                 name="gstin"
                 rules={[{ required: true, message: 'GSTIN is required' }]}
               >
-                <Input placeholder="Enter GSTIN" />
+                <Input placeholder="Enter GSTIN" readOnly className="bg-gray-100" />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
@@ -551,7 +738,7 @@ const CreateChallanForm = () => {
                 name="pan"
                 rules={[{ required: true, message: 'PAN is required' }]}
               >
-                <Input placeholder="Enter PAN" />
+                <Input placeholder="Enter PAN" readOnly className="bg-gray-100" />
               </Form.Item>
             </Col>
           </Row>
@@ -562,14 +749,14 @@ const CreateChallanForm = () => {
                 name="contact"
                 rules={[{ required: true, message: 'Contact is required' }]}
               >
-                <Input placeholder="Enter contact number" />
+                <Input placeholder="Enter contact number" readOnly className="bg-gray-100" />
               </Form.Item>
             </Col>
           </Row>
         </Card>
 
         {/* Customer Information */}
-        <Card 
+        <Card
           title={
             <span className="flex items-center gap-2 text-lg">
               <Users size={20} className="text-purple-600" />
@@ -592,10 +779,12 @@ const CreateChallanForm = () => {
                     style={{ flex: 1 }}
                     notFoundContent="No customer found"
                     onChange={handleCustomerChange}
+                    onSelect={onCustomerSelect}
                     value={form.getFieldValue('customer')}
-                    filterOption={(input, option) =>
-                      option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                    }
+                    filterOption={(input, option) => {
+                      const children = Array.isArray(option.children) ? option.children.join('') : option.children;
+                      return children.toLowerCase().indexOf(input.toLowerCase()) >= 0;
+                    }}
                   >
                     {customerOptions}
                   </Select>
@@ -611,19 +800,12 @@ const CreateChallanForm = () => {
               </Form.Item>
             </Col>
           </Row>
-          
+
           {/* Display selected customer details */}
           {selectedCustomer && (
             <Alert
               message="Selected Customer Details"
-              description={
-                <div>
-                  <p><strong>Name:</strong> {selectedCustomer.userName}</p>
-                  <p><strong>Firm:</strong> {selectedCustomer.firmName}</p>
-                  <p><strong>GST:</strong> {selectedCustomer.gst}</p>
-                  <p><strong>Address:</strong> {selectedCustomer.firmAddress}</p>
-                </div>
-              }
+              description={customerInfoDisplay}
               type="info"
               showIcon
               className="mt-4"
@@ -632,7 +814,7 @@ const CreateChallanForm = () => {
         </Card>
 
         {/* Purchase Order & Vehicle Information */}
-        <Card 
+        <Card
           title={
             <span className="flex items-center gap-2 text-lg">
               <FileText size={20} className="text-orange-600" />
@@ -667,9 +849,9 @@ const CreateChallanForm = () => {
                 label="Vehicle Number"
                 name="vehicleNo"
               >
-                <Input 
+                <Input
                   prefix={<Truck size={16} className="text-gray-400" />}
-                  placeholder="Enter vehicle number" 
+                  placeholder="Enter vehicle number"
                 />
               </Form.Item>
             </Col>
@@ -705,7 +887,7 @@ const CreateChallanForm = () => {
             scroll={{ x: 800 }}
             className="mb-4"
           />
-          
+
           {ValidationAlert} //
         </Card>
 
@@ -758,7 +940,7 @@ const CreateChallanForm = () => {
         </Card>
 
         {/* Additional Fields */}
-        <Card 
+        <Card
           title={
             <span className="flex items-center gap-2 text-lg">
               <CheckSquare size={20} className="text-indigo-600" />
@@ -785,6 +967,16 @@ const CreateChallanForm = () => {
                 <Checkbox>
                   <Text>End of Entry (EOE)</Text>
                 </Checkbox>
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={24}>
+            <Col xs={24}>
+              <Form.Item
+                label="Narration"
+                name="narration"
+              >
+                <TextArea rows={3} placeholder="Enter narration or additional notes" />
               </Form.Item>
             </Col>
           </Row>
@@ -833,7 +1025,6 @@ const CreateChallanForm = () => {
               <Form.Item
                 label="User Name"
                 name="userName"
-                rules={[{ required: true, message: 'User name is required' }]}
               >
                 <Input placeholder="Enter user name" />
               </Form.Item>
@@ -842,7 +1033,6 @@ const CreateChallanForm = () => {
               <Form.Item
                 label="Firm Name"
                 name="firmName"
-                rules={[{ required: true, message: 'Firm name is required' }]}
               >
                 <Input placeholder="Enter firm name" />
               </Form.Item>
@@ -854,22 +1044,14 @@ const CreateChallanForm = () => {
               <Form.Item
                 label="Email"
                 name="email"
-                rules={[
-                  { required: true, message: 'Email is required' },
-                  { type: 'email', message: 'Please enter a valid email' }
-                ]}
               >
-                <Input placeholder="Enter email address" />
+                <Input placeholder="Enter email firmAddress" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
               <Form.Item
                 label="Phone"
                 name="phone"
-                rules={[
-                  { required: true, message: 'Phone is required' },
-                  { pattern: /^[0-9+\-\s()]{10,15}$/, message: 'Enter valid phone number' }
-                ]}
               >
                 <Input placeholder="Enter phone number" />
               </Form.Item>
@@ -881,10 +1063,6 @@ const CreateChallanForm = () => {
               <Form.Item
                 label="Alternative Phone"
                 name="alternativePhone"
-                rules={[
-                  { required: true, message: 'Alternative phone is required' },
-                  { pattern: /^[0-9+\-\s()]{10,15}$/, message: 'Enter valid phone number' }
-                ]}
               >
                 <Input placeholder="Enter alternative phone" />
               </Form.Item>
@@ -893,7 +1071,6 @@ const CreateChallanForm = () => {
               <Form.Item
                 label="GST Number"
                 name="gst"
-                rules={[{ required: true, message: 'GST number is required' }]}
               >
                 <Input placeholder="Enter GST number" />
               </Form.Item>
@@ -901,23 +1078,21 @@ const CreateChallanForm = () => {
           </Row>
 
           <Form.Item
-            label="Firm Address"
-            name="firmAddress"
-            rules={[{ required: true, message: 'Firm address is required' }]}
+            label="Firm firmAddress"
+            name="firmfirmAddress"
           >
-            <TextArea rows={3} placeholder="Enter firm address" />
+            <TextArea rows={3} placeholder="Enter firm firmAddress" />
           </Form.Item>
 
           <Form.Item
             label="Description"
             name="description"
-            rules={[{ required: true, message: 'Description is required' }]}
           >
             <TextArea rows={3} placeholder="Enter description" />
           </Form.Item>
 
           <div className="flex justify-end gap-2 mt-6">
-            <Button 
+            <Button
               onClick={() => {
                 setCustomerModalVisible(false);
                 customerForm.resetFields();
@@ -925,9 +1100,9 @@ const CreateChallanForm = () => {
             >
               Cancel
             </Button>
-            <Button 
-              type="primary" 
-              htmlType="submit" 
+            <Button
+              type="primary"
+              htmlType="submit"
               loading={customerLoading}
               icon={<Save size={16} />}
             >
